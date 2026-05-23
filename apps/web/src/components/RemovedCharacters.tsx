@@ -17,7 +17,7 @@ function FaceDownCard({ index }: { index: number }) {
       initial={{ opacity: 0, rotateY: 180 }}
       animate={{ opacity: 1, rotateY: 0 }}
       transition={{ delay: index * 0.1 }}
-      className="w-[52px] h-[72px] rounded-lg border-2 border-slate-600 overflow-hidden select-none"
+      className="w-[40px] h-[56px] rounded-md border border-slate-600 overflow-hidden select-none"
       style={{
         background: `
           repeating-linear-gradient(
@@ -31,14 +31,7 @@ function FaceDownCard({ index }: { index: number }) {
       }}
     >
       <div className="w-full h-full flex items-center justify-center">
-        <div
-          className="w-9 h-9 rounded-full border border-slate-500/40 flex items-center justify-center"
-          style={{
-            background: 'radial-gradient(circle, #475569 0%, #1e293b 100%)',
-          }}
-        >
-          <span className="text-slate-400 text-lg">?</span>
-        </div>
+        <span className="text-slate-500 text-sm">?</span>
       </div>
     </motion.div>
   );

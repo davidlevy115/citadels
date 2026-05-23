@@ -28,167 +28,128 @@ export function PlayerSeat({
   const charIcon = char ? (CHARACTER_ICON[char.name] || '\u2726') : null;
 
   return (
-    <motion.div
-      layout
+    <div
       className={`
-        relative rounded-xl overflow-hidden transition-all duration-300
+        relative rounded-lg overflow-hidden select-none
         ${isActive
-          ? 'border-2 border-yellow-400 shadow-lg shadow-yellow-500/20 bg-slate-800/90'
+          ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/20'
           : isMe
-            ? 'border-2 border-cyan-500/40 bg-slate-800/80'
-            : 'border border-slate-700 bg-slate-800/60'
+            ? 'ring-1 ring-cyan-400/40'
+            : ''
         }
+        ${isMurdered ? 'opacity-50' : ''}
       `}
+      style={{
+        background: 'linear-gradient(180deg, rgba(60,40,28,0.95) 0%, rgba(30,20,12,0.95) 100%)',
+        border: '1px solid rgba(100,70,40,0.5)',
+      }}
     >
-      {/* Active turn glow */}
+      {/* Active pulse */}
       {isActive && (
         <motion.div
-          className="absolute inset-0 rounded-xl border-2 border-yellow-400 pointer-events-none"
-          animate={{ opacity: [0.4, 1, 0.4] }}
+          className="absolute inset-0 rounded-lg pointer-events-none"
+          style={{ border: '2px solid rgba(250,204,21,0.5)' }}
+          animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ repeat: Infinity, duration: 2 }}
         />
       )}
 
-      {/* Header: player name + stats */}
-      <div className="px-3 pt-3 pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {hasCrown && <span className="text-yellow-400 text-base shrink-0" title="Has the Crown">&#9813;</span>}
-            <span className={`font-semibold text-sm truncate ${isMe ? 'text-cyan-300' : 'text-white'}`}>
-              {player.name}
-            </span>
-            {isMe && <span className="text-[10px] text-cyan-400/70 shrink-0">(You)</span>}
-            {player.isBot && <span className="text-[10px] text-slate-500 shrink-0">BOT</span>}
-          </div>
-
-          {/* Cards in hand */}
-          <div className="flex items-center gap-0.5 shrink-0" title="Cards in hand">
-            <div className="w-4 h-5 rounded-sm bg-gradient-to-b from-slate-400 to-slate-500 border border-slate-300/40 shadow-sm" />
-            <span className="text-xs font-semibold text-slate-300 tabular-nums">{player.handSize}</span>
-          </div>
-        </div>
-
-        {/* Gold pile */}
-        <div className="mt-2">
-          <GoldDisplay amount={player.gold} size="sm" />
-        </div>
-
-        {/* Revealed character badge */}
-        {char && (
+      <div className="p-2">
+        {/* Row 1: Name + Character portrait + Gold */}
+        <div className="flex items-center gap-2">
+          {/* Character portrait or placeholder */}
           <button
             onClick={onCharacterClick}
-            className="mt-1.5 flex items-center gap-1.5 w-full group"
+            className="shrink-0"
           >
-            {/* Mini character portrait */}
-            <div className="w-7 h-7 rounded-full overflow-hidden border border-white/20 shrink-0 bg-slate-700">
-              {!charImgError ? (
+            <div className={`w-9 h-9 rounded-full overflow-hidden border-2 ${
+              isActive ? 'border-yellow-400' : char ? 'border-amber-700' : 'border-slate-600'
+            }`}>
+              {char && !charImgError ? (
                 <img
                   src={getCharacterImagePath(char.name)}
                   alt={char.name}
                   className="w-full h-full object-cover"
                   onError={() => setCharImgError(true)}
                 />
+              ) : char ? (
+                <div className="w-full h-full bg-slate-800 flex items-center justify-center text-sm">{charIcon}</div>
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs">{charIcon}</div>
+                <div className="w-full h-full bg-slate-800 flex items-center justify-center text-slate-600 text-sm">?</div>
               )}
             </div>
-            <span className="text-xs text-amber-300 group-hover:text-amber-200 transition-colors font-medium">
-              {char.name}
-            </span>
-            <span className="text-[10px] text-slate-500">#{char.rank}</span>
           </button>
-        )}
 
-        {/* Unrevealed character indicator */}
-        {!char && (
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-slate-500 text-xs">?</div>
-            <span className="text-xs text-slate-500 italic">Hidden</span>
+          {/* Name + status */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1">
+              {hasCrown && <span className="text-yellow-400 text-sm">&#9813;</span>}
+              <span className={`text-xs font-bold truncate ${isMe ? 'text-cyan-300' : 'text-amber-100'}`}>
+                {player.name}
+              </span>
+              {player.isBot && <span className="text-[9px] text-slate-500">BOT</span>}
+            </div>
+            {char && (
+              <div className="text-[10px] text-amber-400/80 truncate">{char.name}</div>
+            )}
+            {isMurdered && <div className="text-[10px] text-red-400">{'\u2620'} Murdered</div>}
+            {isRobbed && !isMurdered && <div className="text-[10px] text-amber-400">{'\u2666'} Robbed</div>}
           </div>
-        )}
 
-        {/* Murder / rob status badges */}
-        {isMurdered && char && (
-          <div className="mt-1.5 flex items-center gap-1 px-2 py-1 bg-red-900/60 border border-red-700/60 rounded text-[10px] text-red-300 font-medium">
-            <span>{'\u2620'}</span> Murdered — turn skipped
-          </div>
-        )}
-        {isRobbed && !isMurdered && char && (
-          <div className="mt-1.5 flex items-center gap-1 px-2 py-1 bg-amber-900/60 border border-amber-700/60 rounded text-[10px] text-amber-300 font-medium">
-            <span>{'\u2666'}</span> Being robbed by the Thief
-          </div>
-        )}
-      </div>
-
-      {/* Action feed */}
-      <div className="px-3 pb-2">
-        <AnimatePresence mode="popLayout">
-          {latestActions.length > 0 ? (
-            latestActions.map((action, i) => (
-              <motion.div
-                key={action + i}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0 }}
-                className={`text-[11px] leading-relaxed ${i === 0 ? 'text-slate-200' : 'text-slate-500'}`}
-              >
-                <span className="text-slate-600 mr-1">&rsaquo;</span>
-                {action}
-              </motion.div>
-            ))
-          ) : (
-            <div className="text-[11px] text-slate-600 italic">Waiting...</div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* City (built districts) */}
-      {player.city.length > 0 && (
-        <div className="px-2 pb-2 border-t border-slate-700/50 pt-2">
-          <div className="flex flex-wrap gap-1 justify-center">
-            {player.city.map((d) => (
-              <DistrictCardView
-                key={d.id}
-                card={d}
-                small
-                disabled
-                onDetail={onDistrictClick ? () => onDistrictClick(d) : undefined}
-              />
-            ))}
+          {/* Gold + Cards compact */}
+          <div className="shrink-0 text-right">
+            <div className="flex items-center gap-1 justify-end">
+              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 flex items-center justify-center shadow-sm">
+                <span className="text-[7px] font-black text-yellow-900">G</span>
+              </div>
+              <span className="text-sm font-bold text-amber-200 tabular-nums">{player.gold}</span>
+            </div>
+            <div className="flex items-center gap-0.5 justify-end mt-0.5">
+              <div className="w-3 h-3.5 rounded-[2px] bg-slate-500/60 border border-slate-400/30" />
+              <span className="text-[10px] text-slate-400 tabular-nums">{player.handSize}</span>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* City progress bar */}
-      <div className="px-3 pb-2">
-        <div className="flex items-center gap-1.5">
-          <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-            <motion.div
-              className={`h-full rounded-full ${player.city.length >= 8 ? 'bg-amber-400' : 'bg-cyan-500'}`}
-              initial={false}
-              animate={{ width: `${(player.city.length / 8) * 100}%` }}
-              transition={{ type: 'spring', damping: 20 }}
-            />
+        {/* Row 2: Latest action */}
+        {latestActions.length > 0 && (
+          <div className="mt-1.5 text-[10px] text-slate-400 truncate pl-11">
+            <span className="text-slate-600">&rsaquo;</span> {latestActions[0]}
           </div>
-          <span className="text-[10px] text-slate-500">{player.city.length}/8</span>
-        </div>
+        )}
+
+        {/* Row 3: City miniatures */}
+        {player.city.length > 0 && (
+          <div className="mt-1.5 flex gap-0.5 overflow-x-auto pl-11">
+            {player.city.map(d => {
+              const typeColor = {
+                noble: 'bg-yellow-500', religious: 'bg-blue-500', trade: 'bg-green-500',
+                military: 'bg-red-500', special: 'bg-purple-500',
+              }[d.type] || 'bg-slate-500';
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => onDistrictClick?.(d)}
+                  className={`shrink-0 w-4 h-5 rounded-[2px] ${typeColor} opacity-80 hover:opacity-100 transition-opacity border border-white/10`}
+                  title={`${d.name} (${d.cost})`}
+                />
+              );
+            })}
+            <span className="text-[9px] text-slate-500 self-center ml-0.5">{player.city.length}/8</span>
+          </div>
+        )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-// Utility: extract the latest actions for a specific player from the log
 export function getPlayerActions(log: LogEntry[], playerName: string, maxActions = 2): string[] {
   const actions: string[] = [];
-  // Scan log from most recent
   for (let i = log.length - 1; i >= 0 && actions.length < maxActions; i--) {
     const msg = log[i].message;
     if (msg.startsWith(playerName + ' ')) {
-      // Strip the player name prefix for cleaner display
       actions.push(msg.slice(playerName.length + 1));
-    }
-    // Also catch messages that reference this player (e.g., "Thief steals from PlayerName")
-    else if (msg.includes(playerName) && !msg.startsWith('Round') && !msg.startsWith('Game') && !msg.startsWith('Character')) {
+    } else if (msg.includes(playerName) && !msg.startsWith('Round') && !msg.startsWith('Game') && !msg.startsWith('Character')) {
       actions.push(msg);
     }
   }
