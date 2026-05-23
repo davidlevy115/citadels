@@ -8,7 +8,7 @@ import { GameBoard } from '@/components/GameBoard';
 
 export default function Home() {
   const { createGame, createMultiplayerRoom, joinRoom, sendAction, loadGame, listSaves } = useSocket();
-  const { roomId, playerId, gameView, error, actionError, savedGames } = useGameStore();
+  const { roomId, playerId, gameView, lobbyState, error, actionError, savedGames } = useGameStore();
 
   const [playerName, setPlayerName] = useState('');
   const [botCount, setBotCount] = useState(3);
@@ -31,6 +31,71 @@ export default function Home() {
         actionError={actionError}
         roomId={roomId}
       />
+    );
+  }
+
+  // Waiting room — show lobby
+  if (roomId && lobbyState && lobbyState.waiting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 max-w-md w-full border border-slate-600 shadow-2xl text-center"
+        >
+          <h1 className="text-3xl font-bold text-amber-400 mb-2">Citadels</h1>
+          <p className="text-slate-400 text-sm mb-6">Waiting for players to join...</p>
+
+          {/* Room code */}
+          <div className="bg-slate-900/60 rounded-xl p-5 mb-6">
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Share this room code</p>
+            <button
+              onClick={() => navigator.clipboard.writeText(lobbyState.roomId)}
+              className="text-4xl font-bold text-amber-400 tracking-[0.3em] hover:text-amber-300 transition-colors"
+              title="Click to copy"
+            >
+              {lobbyState.roomId}
+            </button>
+            <p className="text-xs text-slate-500 mt-2">Click to copy</p>
+          </div>
+
+          {/* Player list */}
+          <div className="space-y-2 mb-6">
+            {Array.from({ length: lobbyState.totalHumansNeeded }, (_, i) => {
+              const name = lobbyState.joined[i];
+              return (
+                <div
+                  key={i}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border ${
+                    name
+                      ? 'bg-green-900/30 border-green-700/50'
+                      : 'bg-slate-700/30 border-slate-600/50'
+                  }`}
+                >
+                  <div className={`w-3 h-3 rounded-full ${name ? 'bg-green-400' : 'bg-slate-600 animate-pulse'}`} />
+                  <span className={`text-sm ${name ? 'text-green-300 font-medium' : 'text-slate-500 italic'}`}>
+                    {name || 'Waiting for player...'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-slate-500">
+            {lobbyState.joined.length} / {lobbyState.totalHumansNeeded} players joined
+          </p>
+
+          <motion.div
+            className="mt-4 flex justify-center gap-1.5"
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+          >
+            {[0, 1, 2].map(i => (
+              <div key={i} className="w-2 h-2 rounded-full bg-amber-400" />
+            ))}
+          </motion.div>
+        </motion.div>
+      </div>
     );
   }
 

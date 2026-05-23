@@ -13,10 +13,14 @@ interface RoomPlayer {
 
 interface GameRoom {
   id: string;
-  state: GameState;
+  state: GameState | null;           // null while waiting for players
   players: RoomPlayer[];
   isSinglePlayer: boolean;
   autoSave: boolean;
+  // Lobby state
+  waitingForPlayers: boolean;
+  totalHumansNeeded: number;
+  pendingConfig: GameConfig['players'] | null;
 }
 
 const rooms = new Map<string, GameRoom>();
@@ -26,6 +30,19 @@ function generateRoomId(): string {
 }
 
 function broadcastState(io: Server, room: GameRoom): void {
+  if (!room.state) {
+    // Lobby state — tell everyone who's in and who we're waiting for
+    const lobbyInfo = {
+      roomId: room.id,
+      joined: room.players.map(p => p.name),
+      totalHumansNeeded: room.totalHumansNeeded,
+      waiting: true,
+    };
+    for (const rp of room.players) {
+      io.to(rp.socketId).emit('lobbyState', lobbyInfo);
+    }
+    return;
+  }
   for (const rp of room.players) {
     const view = getPlayerView(room.state, rp.playerId);
     io.to(rp.socketId).emit('gameState', view);
@@ -33,11 +50,11 @@ function broadcastState(io: Server, room: GameRoom): void {
 }
 
 function processBotTurns(io: Server, room: GameRoom): void {
+  if (!room.state) return;
   let safety = 0;
   const maxIterations = 100;
 
   while (safety++ < maxIterations) {
-    // Find if a bot needs to act
     const state = room.state;
     let botPlayer: { id: string } | null = null;
 
@@ -64,14 +81,45 @@ function processBotTurns(io: Server, room: GameRoom): void {
 
   broadcastState(io, room);
 
-  // Auto-save single player games
-  if (room.isSinglePlayer && room.autoSave) {
+  if (room.isSinglePlayer && room.autoSave && room.state) {
     saveGame(room.id, room.state);
   }
 }
 
+function tryStartGame(io: Server, room: GameRoom): void {
+  if (!room.waitingForPlayers || !room.pendingConfig) return;
+  if (room.players.length < room.totalHumansNeeded) return;
+
+  // All humans joined — create the game
+  // Update player names from actual joined players
+  let humanIdx = 0;
+  const config = room.pendingConfig.map(p => {
+    if (!p.isBot && humanIdx < room.players.length) {
+      return { ...p, name: room.players[humanIdx++].name };
+    }
+    return p;
+  });
+
+  const state = createGame({ players: config });
+  room.state = state;
+  room.waitingForPlayers = false;
+
+  // Map joined players to game player IDs
+  humanIdx = 0;
+  for (const rp of room.players) {
+    const gamePlayer = state.players.filter(p => !p.isBot)[humanIdx];
+    if (gamePlayer) {
+      rp.playerId = gamePlayer.id;
+    }
+    humanIdx++;
+  }
+
+  console.log(`Game started in room ${room.id} with ${state.players.length} players`);
+  processBotTurns(io, room);
+}
+
 export function setupRoomHandlers(io: Server, socket: Socket): void {
-  // Create new game
+  // Create single-player game (starts immediately)
   socket.on('createGame', (config: {
     playerName: string;
     botCount: number;
@@ -103,15 +151,17 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
         playerId: state.players[0].id,
         name: config.playerName,
       }],
-      isSinglePlayer: config.botCount > 0 && players.filter(p => !p.isBot).length === 1,
+      isSinglePlayer: true,
       autoSave: true,
+      waitingForPlayers: false,
+      totalHumansNeeded: 1,
+      pendingConfig: null,
     };
 
     rooms.set(roomId, room);
     socket.join(roomId);
     socket.emit('roomJoined', { roomId, playerId: state.players[0].id });
 
-    // Process bot turns if bots go first
     processBotTurns(io, room);
   });
 
@@ -123,26 +173,27 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       return;
     }
 
-    // Find an unoccupied non-bot player slot, or error
-    const occupiedPlayerIds = new Set(room.players.map(p => p.playerId));
-    const availableSlot = room.state.players.find(
-      p => !p.isBot && !occupiedPlayerIds.has(p.id)
-    );
-
-    if (!availableSlot) {
+    // Check if room is full
+    if (room.players.length >= room.totalHumansNeeded) {
       socket.emit('error', 'Room is full.');
       return;
     }
 
-    room.players.push({
+    const rp: RoomPlayer = {
       socketId: socket.id,
-      playerId: availableSlot.id,
+      playerId: '',  // assigned when game starts
       name: data.playerName,
-    });
+    };
+    room.players.push(rp);
 
     socket.join(data.roomId);
-    socket.emit('roomJoined', { roomId: data.roomId, playerId: availableSlot.id });
+    socket.emit('roomJoined', { roomId: data.roomId, playerId: '' });
+
+    // Broadcast lobby state to everyone
     broadcastState(io, room);
+
+    // Check if all humans are in — start the game
+    tryStartGame(io, room);
   });
 
   // Create multiplayer room (lobby waiting for players)
@@ -153,72 +204,74 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     botDifficulty?: 'easy' | 'medium' | 'hard';
   }) => {
     const roomId = generateRoomId();
-    const players: GameConfig['players'] = [];
+    const pendingConfig: GameConfig['players'] = [];
 
     for (let i = 0; i < config.totalHumans; i++) {
-      players.push({
+      pendingConfig.push({
         name: i === 0 ? config.playerName : `Player ${i + 1}`,
         isBot: false,
       });
     }
     for (let i = 0; i < config.botCount; i++) {
-      players.push({
+      pendingConfig.push({
         name: `Bot ${i + 1}`,
         isBot: true,
         botDifficulty: config.botDifficulty ?? 'medium',
       });
     }
 
-    if (players.length < 2 || players.length > 7) {
+    if (pendingConfig.length < 2 || pendingConfig.length > 7) {
       socket.emit('error', 'Need 2-7 total players.');
       return;
     }
 
-    const state = createGame({ players });
     const room: GameRoom = {
       id: roomId,
-      state,
+      state: null,  // game not created yet
       players: [{
         socketId: socket.id,
-        playerId: state.players[0].id,
+        playerId: '',
         name: config.playerName,
       }],
       isSinglePlayer: false,
       autoSave: false,
+      waitingForPlayers: true,
+      totalHumansNeeded: config.totalHumans,
+      pendingConfig,
     };
 
     rooms.set(roomId, room);
     socket.join(roomId);
-    socket.emit('roomJoined', { roomId, playerId: state.players[0].id });
-    broadcastState(io, room);
+    socket.emit('roomJoined', { roomId, playerId: '' });
 
-    // Process bot turns if bots go first
-    processBotTurns(io, room);
+    // If only 1 human needed (rest are bots), start immediately
+    tryStartGame(io, room);
+
+    // Otherwise broadcast lobby state
+    if (room.waitingForPlayers) {
+      broadcastState(io, room);
+    }
   });
 
   // Player action
   socket.on('gameAction', (data: { roomId: string; action: GameAction }) => {
     const room = rooms.get(data.roomId);
-    if (!room) {
-      socket.emit('error', 'Room not found.');
+    if (!room || !room.state) {
+      socket.emit('error', 'Game not started yet.');
       return;
     }
 
-    // Verify the player belongs to this room
     const rp = room.players.find(p => p.socketId === socket.id);
     if (!rp) {
       socket.emit('error', 'You are not in this room.');
       return;
     }
 
-    // Ensure the action's playerId matches this socket's player
     const action = { ...data.action, playerId: rp.playerId } as GameAction;
 
     try {
       room.state = processAction(room.state, action);
       broadcastState(io, room);
-
-      // Process bot turns after human action
       processBotTurns(io, room);
     } catch (e: any) {
       socket.emit('actionError', e.message);
@@ -233,7 +286,6 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       return;
     }
 
-    // Find the human player in the saved state
     const humanPlayer = state.players.find(p => !p.isBot);
     if (!humanPlayer) {
       socket.emit('error', 'No human player found in saved game.');
@@ -250,14 +302,15 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       }],
       isSinglePlayer: true,
       autoSave: true,
+      waitingForPlayers: false,
+      totalHumansNeeded: 1,
+      pendingConfig: null,
     };
 
     rooms.set(data.gameId, room);
     socket.join(data.gameId);
     socket.emit('roomJoined', { roomId: data.gameId, playerId: humanPlayer.id });
     broadcastState(io, room);
-
-    // Process bot turns if it's a bot's turn
     processBotTurns(io, room);
   });
 
@@ -273,8 +326,10 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       const idx = room.players.findIndex(p => p.socketId === socket.id);
       if (idx !== -1) {
         room.players.splice(idx, 1);
-        if (room.players.length === 0 && !room.isSinglePlayer) {
+        if (room.players.length === 0) {
           rooms.delete(roomId);
+        } else {
+          broadcastState(io, room);
         }
       }
     }

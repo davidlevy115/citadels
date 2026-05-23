@@ -8,7 +8,7 @@ import { useGameStore } from './useGameState';
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
-  const { setRoom, setGameView, setError, setActionError, setSavedGames, roomId, playerId } = useGameStore();
+  const { setRoom, setGameView, setLobbyState, setError, setActionError, setSavedGames, roomId, playerId } = useGameStore();
 
   useEffect(() => {
     const socket = getSocket();
@@ -20,6 +20,10 @@ export function useSocket() {
 
     socket.on('gameState', (view: any) => {
       setGameView(view);
+    });
+
+    socket.on('lobbyState', (lobby: any) => {
+      setLobbyState(lobby);
     });
 
     socket.on('error', (msg: string) => {
@@ -39,11 +43,12 @@ export function useSocket() {
     return () => {
       socket.off('roomJoined');
       socket.off('gameState');
+      socket.off('lobbyState');
       socket.off('error');
       socket.off('actionError');
       socket.off('savedGames');
     };
-  }, [setRoom, setGameView, setError, setActionError, setSavedGames]);
+  }, [setRoom, setGameView, setLobbyState, setError, setActionError, setSavedGames]);
 
   const createGame = useCallback((playerName: string, botCount: number) => {
     socketRef.current?.emit('createGame', { playerName, botCount });
