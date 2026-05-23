@@ -316,22 +316,29 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
             )}
           </div>
 
-          {/* My city dots */}
+          {/* My city */}
           {me && me.city.length > 0 && (
             <>
-              <div className="w-px h-10 bg-amber-900/40" />
-              <div className="shrink-0 flex flex-col items-center gap-1">
-                <div className="flex gap-0.5">
+              <div className="w-px h-10 bg-amber-900/40 shrink-0" />
+              <div className="shrink-0">
+                {/* Mini cards — visible on lg, dots on mobile */}
+                <div className="hidden lg:flex flex-wrap gap-1 max-w-[280px]">
+                  {me.city.map(d => (
+                    <DistrictCardView key={d.id} card={d} small disabled
+                      onDetail={() => setDetailTarget({ type: 'district', card: d })} />
+                  ))}
+                </div>
+                <div className="lg:hidden flex items-center gap-0.5">
                   {me.city.map(d => {
                     const col = { noble: 'bg-yellow-500', religious: 'bg-blue-500', trade: 'bg-green-500', military: 'bg-red-500', special: 'bg-purple-500' }[d.type];
                     return (
                       <button key={d.id} onClick={() => setDetailTarget({ type: 'district', card: d })}
-                        className={`w-3 h-4 rounded-[2px] ${col} opacity-80 hover:opacity-100 border border-white/10`}
+                        className={`w-3.5 h-4 rounded-[2px] ${col} opacity-80 hover:opacity-100 border border-white/10`}
                         title={d.name} />
                     );
                   })}
                 </div>
-                <span className="text-[9px] text-slate-500">{me.city.length}/8</span>
+                <div className="text-[9px] text-slate-500 text-center mt-0.5">{me.city.length}/8</div>
               </div>
             </>
           )}

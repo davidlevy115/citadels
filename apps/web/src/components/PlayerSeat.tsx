@@ -1,11 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PlayerPublicInfo, BuiltDistrict, Character, LogEntry } from '@citadels/game-logic';
 import { DistrictCardView } from './Card';
-import { GoldDisplay } from './GoldDisplay';
 import { getCharacterImagePath, CHARACTER_ICON } from '@/lib/cardImages';
-import { useState } from 'react';
 
 interface PlayerSeatProps {
   player: PlayerPublicInfo;
@@ -24,6 +23,7 @@ export function PlayerSeat({
   onCharacterClick, onDistrictClick,
 }: PlayerSeatProps) {
   const [charImgError, setCharImgError] = useState(false);
+  const [cityExpanded, setCityExpanded] = useState(false);
   const char = player.revealedCharacter;
   const charIcon = char ? (CHARACTER_ICON[char.name] || '\u2726') : null;
 
@@ -31,12 +31,7 @@ export function PlayerSeat({
     <div
       className={`
         relative rounded-lg overflow-hidden select-none
-        ${isActive
-          ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/20'
-          : isMe
-            ? 'ring-1 ring-cyan-400/40'
-            : ''
-        }
+        ${isActive ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/20' : isMe ? 'ring-1 ring-cyan-400/40' : ''}
         ${isMurdered ? 'opacity-50' : ''}
       `}
       style={{
@@ -44,7 +39,6 @@ export function PlayerSeat({
         border: '1px solid rgba(100,70,40,0.5)',
       }}
     >
-      {/* Active pulse */}
       {isActive && (
         <motion.div
           className="absolute inset-0 rounded-lg pointer-events-none"
@@ -55,23 +49,15 @@ export function PlayerSeat({
       )}
 
       <div className="p-2">
-        {/* Row 1: Name + Character portrait + Gold */}
+        {/* Row 1: Portrait + Name + Gold */}
         <div className="flex items-center gap-2">
-          {/* Character portrait or placeholder */}
-          <button
-            onClick={onCharacterClick}
-            className="shrink-0"
-          >
+          <button onClick={onCharacterClick} className="shrink-0">
             <div className={`w-9 h-9 rounded-full overflow-hidden border-2 ${
               isActive ? 'border-yellow-400' : char ? 'border-amber-700' : 'border-slate-600'
             }`}>
               {char && !charImgError ? (
-                <img
-                  src={getCharacterImagePath(char.name)}
-                  alt={char.name}
-                  className="w-full h-full object-cover"
-                  onError={() => setCharImgError(true)}
-                />
+                <img src={getCharacterImagePath(char.name)} alt={char.name}
+                  className="w-full h-full object-cover" onError={() => setCharImgError(true)} />
               ) : char ? (
                 <div className="w-full h-full bg-slate-800 flex items-center justify-center text-sm">{charIcon}</div>
               ) : (
@@ -80,23 +66,17 @@ export function PlayerSeat({
             </div>
           </button>
 
-          {/* Name + status */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1">
               {hasCrown && <span className="text-yellow-400 text-sm">&#9813;</span>}
-              <span className={`text-xs font-bold truncate ${isMe ? 'text-cyan-300' : 'text-amber-100'}`}>
-                {player.name}
-              </span>
+              <span className={`text-xs font-bold truncate ${isMe ? 'text-cyan-300' : 'text-amber-100'}`}>{player.name}</span>
               {player.isBot && <span className="text-[9px] text-slate-500">BOT</span>}
             </div>
-            {char && (
-              <div className="text-[10px] text-amber-400/80 truncate">{char.name}</div>
-            )}
+            {char && <div className="text-[10px] text-amber-400/80 truncate">{char.name}</div>}
             {isMurdered && <div className="text-[10px] text-red-400">{'\u2620'} Murdered</div>}
             {isRobbed && !isMurdered && <div className="text-[10px] text-amber-400">{'\u2666'} Robbed</div>}
           </div>
 
-          {/* Gold + Cards compact */}
           <div className="shrink-0 text-right">
             <div className="flex items-center gap-1 justify-end">
               <div className="w-4 h-4 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 flex items-center justify-center shadow-sm">
@@ -111,31 +91,46 @@ export function PlayerSeat({
           </div>
         </div>
 
-        {/* Row 2: Latest action */}
+        {/* Latest action */}
         {latestActions.length > 0 && (
-          <div className="mt-1.5 text-[10px] text-slate-400 truncate pl-11">
+          <div className="mt-1 text-[10px] text-slate-400 truncate pl-11">
             <span className="text-slate-600">&rsaquo;</span> {latestActions[0]}
           </div>
         )}
 
-        {/* Row 3: City miniatures */}
+        {/* City: colored dots (mobile) + toggle to expand, always expanded on lg */}
         {player.city.length > 0 && (
-          <div className="mt-1.5 flex gap-0.5 overflow-x-auto pl-11">
-            {player.city.map(d => {
-              const typeColor = {
-                noble: 'bg-yellow-500', religious: 'bg-blue-500', trade: 'bg-green-500',
-                military: 'bg-red-500', special: 'bg-purple-500',
-              }[d.type] || 'bg-slate-500';
-              return (
-                <button
-                  key={d.id}
-                  onClick={() => onDistrictClick?.(d)}
-                  className={`shrink-0 w-4 h-5 rounded-[2px] ${typeColor} opacity-80 hover:opacity-100 transition-opacity border border-white/10`}
-                  title={`${d.name} (${d.cost})`}
-                />
-              );
-            })}
-            <span className="text-[9px] text-slate-500 self-center ml-0.5">{player.city.length}/8</span>
+          <div className="mt-1.5 pl-11">
+            {/* Dots row — clickable to toggle on mobile, hidden on lg */}
+            <button
+              onClick={() => setCityExpanded(!cityExpanded)}
+              className="flex items-center gap-0.5 lg:hidden"
+            >
+              {player.city.map(d => {
+                const col = { noble: 'bg-yellow-500', religious: 'bg-blue-500', trade: 'bg-green-500', military: 'bg-red-500', special: 'bg-purple-500' }[d.type] || 'bg-slate-500';
+                return <div key={d.id} className={`w-3.5 h-4 rounded-[2px] ${col} opacity-80 border border-white/10`} />;
+              })}
+              <span className="text-[9px] text-slate-500 ml-1">{player.city.length}/8</span>
+              <span className="text-[9px] text-slate-600 ml-0.5">{cityExpanded ? '\u25B2' : '\u25BC'}</span>
+            </button>
+
+            {/* Expanded cards — always visible on lg, toggled on mobile */}
+            <div className={`${cityExpanded ? 'block' : 'hidden'} lg:block mt-1`}>
+              <div className="flex flex-wrap gap-1">
+                {player.city.map(d => (
+                  <DistrictCardView
+                    key={d.id}
+                    card={d}
+                    small
+                    disabled
+                    onDetail={onDistrictClick ? () => onDistrictClick(d) : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Count label on lg when cards are shown */}
+            <div className="hidden lg:block text-[9px] text-slate-500 mt-0.5">{player.city.length}/8 districts</div>
           </div>
         )}
       </div>
