@@ -17,7 +17,7 @@ if (existsSync(staticDir)) {
   console.log(`Serving static files from ${staticDir}`);
   app.use(express.static(staticDir));
   // SPA fallback — serve index.html for any non-file route
-  app.get('*', (_req, res) => {
+  app.get('{*path}', (_req, res) => {
     res.sendFile(join(staticDir, 'index.html'));
   });
 }
