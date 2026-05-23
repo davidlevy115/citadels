@@ -1,0 +1,13 @@
+{
+  "name": "citadels",
+  "private": true,
+  "scripts": {
+    "play": "pnpm --filter @citadels/game-logic build && pnpm --parallel --filter @citadels/server --filter @citadels/web dev",
+    "dev": "pnpm --parallel --filter @citadels/server --filter @citadels/web dev",
+    "build": "pnpm --filter @citadels/game-logic build && pnpm --parallel --filter @citadels/server --filter @citadels/web build",
+    "test": "pnpm --filter @citadels/game-logic test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

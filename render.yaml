@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: citadels
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @citadels/game-logic build && pnpm --filter @citadels/web build && pnpm --filter @citadels/server build
+    startCommand: node apps/server/dist/index.js
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: NODE_ENV
+        value: production

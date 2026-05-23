@@ -1,0 +1,1355 @@
+{
+  "id": "2pfkr878",
+  "players": [
+    {
+      "id": "co7x3ka9",
+      "name": "Deivi",
+      "gold": 3,
+      "hand": [
+        {
+          "id": "district-48",
+          "name": "Prison",
+          "cost": 2,
+          "type": "military"
+        }
+      ],
+      "city": [
+        {
+          "id": "district-65",
+          "name": "Great Wall",
+          "cost": 6,
+          "type": "special",
+          "description": "The Warlord must pay 1 extra gold to destroy any of your other districts."
+        },
+        {
+          "id": "district-16",
+          "name": "Church",
+          "cost": 2,
+          "type": "religious"
+        },
+        {
+          "id": "district-19",
+          "name": "Monastery",
+          "cost": 3,
+          "type": "religious"
+        },
+        {
+          "id": "district-6",
+          "name": "Castle",
+          "cost": 4,
+          "type": "noble"
+        },
+        {
+          "id": "district-28",
+          "name": "Market",
+          "cost": 2,
+          "type": "trade"
+        },
+        {
+          "id": "district-0",
+          "name": "Manor",
+          "cost": 3,
+          "type": "noble"
+        }
+      ],
+      "characterCard": {
+        "rank": 8,
+        "name": "Warlord",
+        "description": "Destroy a district by paying 1 less than its cost. Gain 1 gold per military (red) district."
+      },
+      "isBot": false
+    },
+    {
+      "id": "r3uui1gp",
+      "name": "Bot 1",
+      "gold": 1,
+      "hand": [
+        {
+          "id": "district-10",
+          "name": "Palace",
+          "cost": 5,
+          "type": "noble"
+        }
+      ],
+      "city": [
+        {
+          "id": "district-54",
+          "name": "Haunted City",
+          "cost": 2,
+          "type": "special",
+          "description": "For end-game scoring, the Haunted City counts as any district type of your choice."
+        },
+        {
+          "id": "district-36",
+          "name": "Docks",
+          "cost": 3,
+          "type": "trade"
+        },
+        {
+          "id": "district-5",
+          "name": "Castle",
+          "cost": 4,
+          "type": "noble"
+        },
+        {
+          "id": "district-39",
+          "name": "Harbor",
+          "cost": 4,
+          "type": "trade"
+        },
+        {
+          "id": "district-22",
+          "name": "Cathedral",
+          "cost": 5,
+          "type": "religious"
+        },
+        {
+          "id": "district-34",
+          "name": "Trading Post",
+          "cost": 2,
+          "type": "trade"
+        },
+        {
+          "id": "district-52",
+          "name": "Fortress",
+          "cost": 5,
+          "type": "military"
+        },
+        {
+          "id": "district-60",
+          "name": "Observatory",
+          "cost": 5,
+          "type": "special",
+          "description": "When you choose to draw cards, draw 3 and keep 1."
+        }
+      ],
+      "characterCard": {
+        "rank": 5,
+        "name": "Bishop",
+        "description": "Protected from the Warlord. Gain 1 gold per religious (blue) district."
+      },
+      "isBot": true,
+      "botDifficulty": "medium"
+    },
+    {
+      "id": "5vfxet3x",
+      "name": "Bot 2",
+      "gold": 3,
+      "hand": [
+        {
+          "id": "district-26",
+          "name": "Tavern",
+          "cost": 1,
+          "type": "trade"
+        },
+        {
+          "id": "district-21",
+          "name": "Cathedral",
+          "cost": 5,
+          "type": "religious"
+        }
+      ],
+      "city": [
+        {
+          "id": "district-24",
+          "name": "Tavern",
+          "cost": 1,
+          "type": "trade"
+        },
+        {
+          "id": "district-58",
+          "name": "Smithy",
+          "cost": 5,
+          "type": "special",
+          "description": "Once per turn, pay 2 gold and draw 3 cards."
+        },
+        {
+          "id": "district-45",
+          "name": "Watchtower",
+          "cost": 1,
+          "type": "military"
+        },
+        {
+          "id": "district-32",
+          "name": "Trading Post",
+          "cost": 2,
+          "type": "trade"
+        }
+      ],
+      "characterCard": {
+        "rank": 1,
+        "name": "Assassin",
+        "description": "Announce a character to murder. That player skips their entire turn."
+      },
+      "isBot": true,
+      "botDifficulty": "medium"
+    },
+    {
+      "id": "kwhkmqcl",
+      "name": "Bot 3",
+      "gold": 2,
+      "hand": [
+        {
+          "id": "district-62",
+          "name": "School of Magic",
+          "cost": 6,
+          "type": "special",
+          "description": "For income purposes, the School of Magic counts as the district type of your choice."
+        },
+        {
+          "id": "district-41",
+          "name": "Town Hall",
+          "cost": 5,
+          "type": "trade"
+        }
+      ],
+      "city": [
+        {
+          "id": "district-27",
+          "name": "Tavern",
+          "cost": 1,
+          "type": "trade"
+        },
+        {
+          "id": "district-51",
+          "name": "Battlefield",
+          "cost": 3,
+          "type": "military"
+        },
+        {
+          "id": "district-37",
+          "name": "Docks",
+          "cost": 3,
+          "type": "trade"
+        },
+        {
+          "id": "district-11",
+          "name": "Palace",
+          "cost": 5,
+          "type": "noble"
+        },
+        {
+          "id": "district-38",
+          "name": "Harbor",
+          "cost": 4,
+          "type": "trade"
+        },
+        {
+          "id": "district-1",
+          "name": "Manor",
+          "cost": 3,
+          "type": "noble"
+        },
+        {
+          "id": "district-64",
+          "name": "University",
+          "cost": 6,
+          "type": "special",
+          "description": "Worth 8 points at end of game (instead of 6)."
+        }
+      ],
+      "characterCard": {
+        "rank": 4,
+        "name": "King",
+        "description": "Receive the Crown. Gain 1 gold per noble (yellow) district."
+      },
+      "isBot": true,
+      "botDifficulty": "medium"
+    }
+  ],
+  "phase": "gameOver",
+  "round": 10,
+  "characterDeck": [],
+  "districtDeck": [
+    {
+      "id": "district-9",
+      "name": "Palace",
+      "cost": 5,
+      "type": "noble"
+    },
+    {
+      "id": "district-46",
+      "name": "Prison",
+      "cost": 2,
+      "type": "military"
+    },
+    {
+      "id": "district-15",
+      "name": "Church",
+      "cost": 2,
+      "type": "religious"
+    },
+    {
+      "id": "district-56",
+      "name": "Keep",
+      "cost": 3,
+      "type": "special",
+      "description": "The Keep cannot be destroyed by the Warlord."
+    },
+    {
+      "id": "district-44",
+      "name": "Watchtower",
+      "cost": 1,
+      "type": "military"
+    },
+    {
+      "id": "district-30",
+      "name": "Market",
+      "cost": 2,
+      "type": "trade"
+    },
+    {
+      "id": "district-25",
+      "name": "Tavern",
+      "cost": 1,
+      "type": "trade"
+    },
+    {
+      "id": "district-20",
+      "name": "Monastery",
+      "cost": 3,
+      "type": "religious"
+    },
+    {
+      "id": "district-61",
+      "name": "Library",
+      "cost": 6,
+      "type": "special",
+      "description": "When you choose to draw cards, keep both cards."
+    },
+    {
+      "id": "district-33",
+      "name": "Trading Post",
+      "cost": 2,
+      "type": "trade"
+    },
+    {
+      "id": "district-8",
+      "name": "Castle",
+      "cost": 4,
+      "type": "noble"
+    },
+    {
+      "id": "district-59",
+      "name": "Graveyard",
+      "cost": 5,
+      "type": "special",
+      "description": "When the Warlord destroys a district, you may pay 1 gold to take it into your hand."
+    },
+    {
+      "id": "district-7",
+      "name": "Castle",
+      "cost": 4,
+      "type": "noble"
+    },
+    {
+      "id": "district-13",
+      "name": "Temple",
+      "cost": 1,
+      "type": "religious"
+    },
+    {
+      "id": "district-53",
+      "name": "Fortress",
+      "cost": 5,
+      "type": "military"
+    },
+    {
+      "id": "district-40",
+      "name": "Harbor",
+      "cost": 4,
+      "type": "trade"
+    },
+    {
+      "id": "district-55",
+      "name": "Keep",
+      "cost": 3,
+      "type": "special",
+      "description": "The Keep cannot be destroyed by the Warlord."
+    },
+    {
+      "id": "district-57",
+      "name": "Laboratory",
+      "cost": 5,
+      "type": "special",
+      "description": "Once per turn, discard a card from your hand and receive 2 gold."
+    },
+    {
+      "id": "district-4",
+      "name": "Manor",
+      "cost": 3,
+      "type": "noble"
+    },
+    {
+      "id": "district-42",
+      "name": "Town Hall",
+      "cost": 5,
+      "type": "trade"
+    },
+    {
+      "id": "district-50",
+      "name": "Battlefield",
+      "cost": 3,
+      "type": "military"
+    },
+    {
+      "id": "district-49",
+      "name": "Battlefield",
+      "cost": 3,
+      "type": "military"
+    },
+    {
+      "id": "district-17",
+      "name": "Church",
+      "cost": 2,
+      "type": "religious"
+    },
+    {
+      "id": "district-18",
+      "name": "Monastery",
+      "cost": 3,
+      "type": "religious"
+    },
+    {
+      "id": "district-63",
+      "name": "Dragon Gate",
+      "cost": 6,
+      "type": "special",
+      "description": "Worth 8 points at end of game (instead of 6)."
+    },
+    {
+      "id": "district-2",
+      "name": "Manor",
+      "cost": 3,
+      "type": "noble"
+    },
+    {
+      "id": "district-35",
+      "name": "Docks",
+      "cost": 3,
+      "type": "trade"
+    },
+    {
+      "id": "district-3",
+      "name": "Manor",
+      "cost": 3,
+      "type": "noble"
+    },
+    {
+      "id": "district-12",
+      "name": "Temple",
+      "cost": 1,
+      "type": "religious"
+    },
+    {
+      "id": "district-47",
+      "name": "Prison",
+      "cost": 2,
+      "type": "military"
+    },
+    {
+      "id": "district-29",
+      "name": "Market",
+      "cost": 2,
+      "type": "trade"
+    },
+    {
+      "id": "district-43",
+      "name": "Watchtower",
+      "cost": 1,
+      "type": "military"
+    },
+    {
+      "id": "district-23",
+      "name": "Tavern",
+      "cost": 1,
+      "type": "trade"
+    },
+    {
+      "id": "district-14",
+      "name": "Temple",
+      "cost": 1,
+      "type": "religious"
+    },
+    {
+      "id": "district-31",
+      "name": "Market",
+      "cost": 2,
+      "type": "trade"
+    }
+  ],
+  "districtDiscard": [],
+  "removedCharactersFaceDown": [
+    {
+      "rank": 6,
+      "name": "Merchant",
+      "description": "Gain 1 extra gold after your action. Gain 1 gold per trade (green) district."
+    },
+    {
+      "rank": 2,
+      "name": "Thief",
+      "description": "Announce a character to rob. When they are called, take all their gold."
+    }
+  ],
+  "removedCharactersFaceUp": [
+    {
+      "rank": 7,
+      "name": "Architect",
+      "description": "Draw 2 extra cards. You may build up to 3 districts this turn."
+    },
+    {
+      "rank": 3,
+      "name": "Magician",
+      "description": "Exchange your hand with another player, or discard cards and draw replacements."
+    }
+  ],
+  "availableCharacters": [],
+  "choosingPlayerIndex": 3,
+  "currentCharacterRank": 9,
+  "turnState": null,
+  "murderedCharacter": 7,
+  "robbedCharacter": null,
+  "crownPlayerIndex": 3,
+  "firstToEightDistricts": "r3uui1gp",
+  "gameEndTriggered": true,
+  "scores": [
+    {
+      "playerId": "co7x3ka9",
+      "playerName": "Deivi",
+      "districtPoints": 20,
+      "colorBonusPoints": 0,
+      "firstToEightPoints": 0,
+      "otherEightPoints": 0,
+      "totalPoints": 20
+    },
+    {
+      "playerId": "r3uui1gp",
+      "playerName": "Bot 1",
+      "districtPoints": 30,
+      "colorBonusPoints": 3,
+      "firstToEightPoints": 4,
+      "otherEightPoints": 0,
+      "totalPoints": 37
+    },
+    {
+      "playerId": "5vfxet3x",
+      "playerName": "Bot 2",
+      "districtPoints": 9,
+      "colorBonusPoints": 0,
+      "firstToEightPoints": 0,
+      "otherEightPoints": 0,
+      "totalPoints": 9
+    },
+    {
+      "playerId": "kwhkmqcl",
+      "playerName": "Bot 3",
+      "districtPoints": 27,
+      "colorBonusPoints": 0,
+      "firstToEightPoints": 0,
+      "otherEightPoints": 0,
+      "totalPoints": 27
+    }
+  ],
+  "log": [
+    {
+      "message": "King (#4) is called. Bot 2 reveals.",
+      "timestamp": 1779538932482
+    },
+    {
+      "message": "Bot 2 takes the Crown.",
+      "timestamp": 1779538932482
+    },
+    {
+      "message": "Bot 2 draws 2 cards and must choose one to keep.",
+      "timestamp": 1779538932483
+    },
+    {
+      "message": "Bot 2 builds Tavern (cost 1).",
+      "timestamp": 1779538932484
+    },
+    {
+      "message": "Bishop (#5) is called. Bot 3 reveals.",
+      "timestamp": 1779538932484
+    },
+    {
+      "message": "Bot 3 draws 2 cards and must choose one to keep.",
+      "timestamp": 1779538932485
+    },
+    {
+      "message": "Bot 3 builds Tavern (cost 1).",
+      "timestamp": 1779538932485
+    },
+    {
+      "message": "Round 2: Character selection begins.",
+      "timestamp": 1779538932486
+    },
+    {
+      "message": "Bot 2 chose a character.",
+      "timestamp": 1779538932486
+    },
+    {
+      "message": "Bot 3 chose a character.",
+      "timestamp": 1779538932486
+    },
+    {
+      "message": "Deivi chose a character.",
+      "timestamp": 1779538967779
+    },
+    {
+      "message": "Bot 1 chose a character.",
+      "timestamp": 1779538967779
+    },
+    {
+      "message": "Character selection complete. Calling characters...",
+      "timestamp": 1779538967779
+    },
+    {
+      "message": "Thief (#2) is called. Bot 3 reveals.",
+      "timestamp": 1779538967779
+    },
+    {
+      "message": "Bot 3 (Thief) targets the Merchant for robbery.",
+      "timestamp": 1779538967780
+    },
+    {
+      "message": "Bot 3 takes 2 gold. (Total: 3)",
+      "timestamp": 1779538967780
+    },
+    {
+      "message": "Bot 3 builds Battlefield (cost 3).",
+      "timestamp": 1779538967780
+    },
+    {
+      "message": "King (#4) is called. Deivi reveals.",
+      "timestamp": 1779538967780
+    },
+    {
+      "message": "Deivi takes the Crown.",
+      "timestamp": 1779538967780
+    },
+    {
+      "message": "Deivi takes 2 gold. (Total: 6)",
+      "timestamp": 1779538984344
+    },
+    {
+      "message": "Deivi builds Great Wall (cost 6).",
+      "timestamp": 1779539001398
+    },
+    {
+      "message": "Merchant (#6) is called. Bot 2 reveals.",
+      "timestamp": 1779539012343
+    },
+    {
+      "message": "Bot 3 (Thief) steals 1 gold from Bot 2!",
+      "timestamp": 1779539012343
+    },
+    {
+      "message": "Bot 2 takes 2 gold. (Total: 2)",
+      "timestamp": 1779539012344
+    },
+    {
+      "message": "Bot 2 receives 1 bonus gold as Merchant.",
+      "timestamp": 1779539012344
+    },
+    {
+      "message": "Bot 2 collects 1 gold income from districts.",
+      "timestamp": 1779539012344
+    },
+    {
+      "message": "Warlord (#8) is called. Bot 1 reveals.",
+      "timestamp": 1779539012344
+    },
+    {
+      "message": "Bot 1 takes 2 gold. (Total: 2)",
+      "timestamp": 1779539012344
+    },
+    {
+      "message": "Round 3: Character selection begins.",
+      "timestamp": 1779539012344
+    },
+    {
+      "message": "Deivi chose a character.",
+      "timestamp": 1779539028384
+    },
+    {
+      "message": "Bot 1 chose a character.",
+      "timestamp": 1779539028385
+    },
+    {
+      "message": "Bot 2 chose a character.",
+      "timestamp": 1779539028385
+    },
+    {
+      "message": "Bot 3 chose a character.",
+      "timestamp": 1779539028385
+    },
+    {
+      "message": "Character selection complete. Calling characters...",
+      "timestamp": 1779539028385
+    },
+    {
+      "message": "Thief (#2) is called. Bot 1 reveals.",
+      "timestamp": 1779539028385
+    },
+    {
+      "message": "Bot 1 (Thief) targets the Merchant for robbery.",
+      "timestamp": 1779539028385
+    },
+    {
+      "message": "Bot 1 takes 2 gold. (Total: 4)",
+      "timestamp": 1779539028386
+    },
+    {
+      "message": "Bot 1 builds Docks (cost 3).",
+      "timestamp": 1779539028386
+    },
+    {
+      "message": "King (#4) is called. Bot 3 reveals.",
+      "timestamp": 1779539028386
+    },
+    {
+      "message": "Bot 3 takes the Crown.",
+      "timestamp": 1779539028386
+    },
+    {
+      "message": "Bot 3 takes 2 gold. (Total: 3)",
+      "timestamp": 1779539028386
+    },
+    {
+      "message": "Bot 3 builds Docks (cost 3).",
+      "timestamp": 1779539028387
+    },
+    {
+      "message": "Merchant (#6) is called. Bot 2 reveals.",
+      "timestamp": 1779539028387
+    },
+    {
+      "message": "Bot 1 (Thief) steals 4 gold from Bot 2!",
+      "timestamp": 1779539028387
+    },
+    {
+      "message": "Bot 2 takes 2 gold. (Total: 2)",
+      "timestamp": 1779539028387
+    },
+    {
+      "message": "Bot 2 receives 1 bonus gold as Merchant.",
+      "timestamp": 1779539028387
+    },
+    {
+      "message": "Bot 2 collects 1 gold income from districts.",
+      "timestamp": 1779539028388
+    },
+    {
+      "message": "Architect (#7) is called. Deivi reveals.",
+      "timestamp": 1779539028389
+    },
+    {
+      "message": "Deivi takes 2 gold. (Total: 2)",
+      "timestamp": 1779539061062
+    },
+    {
+      "message": "Deivi draws 2 extra cards as Architect.",
+      "timestamp": 1779539061062
+    },
+    {
+      "message": "Deivi builds Church (cost 2).",
+      "timestamp": 1779539069716
+    },
+    {
+      "message": "Round 4: Character selection begins.",
+      "timestamp": 1779539074196
+    },
+    {
+      "message": "Bot 3 chose a character.",
+      "timestamp": 1779539074196
+    },
+    {
+      "message": "Deivi chose a character.",
+      "timestamp": 1779539091422
+    },
+    {
+      "message": "Bot 1 chose a character.",
+      "timestamp": 1779539091422
+    },
+    {
+      "message": "Bot 2 chose a character.",
+      "timestamp": 1779539091422
+    },
+    {
+      "message": "Character selection complete. Calling characters...",
+      "timestamp": 1779539091422
+    },
+    {
+      "message": "Assassin (#1) is called. Bot 2 reveals.",
+      "timestamp": 1779539091422
+    },
+    {
+      "message": "Bot 2 (Assassin) murders the King!",
+      "timestamp": 1779539091423
+    },
+    {
+      "message": "Bot 2 takes 2 gold. (Total: 6)",
+      "timestamp": 1779539091423
+    },
+    {
+      "message": "Bot 2 builds Smithy (cost 5).",
+      "timestamp": 1779539091424
+    },
+    {
+      "message": "King was murdered! Bot 3 skips their turn.",
+      "timestamp": 1779539091424
+    },
+    {
+      "message": "Bishop (#5) is called. Deivi reveals.",
+      "timestamp": 1779539091424
+    },
+    {
+      "message": "Deivi takes 2 gold. (Total: 2)",
+      "timestamp": 1779539113936
+    },
+    {
+      "message": "Deivi collects 1 gold income from districts.",
+      "timestamp": 1779539115077
+    },
+    {
+      "message": "Deivi builds Monastery (cost 3).",
+      "timestamp": 1779539118281
+    },
+    {
+      "message": "Architect (#7) is called. Bot 1 reveals.",
+      "timestamp": 1779539120439
+    },
+    {
+      "message": "Bot 1 draws 2 cards and must choose one to keep.",
+      "timestamp": 1779539120439
+    },
+    {
+      "message": "Bot 1 draws 2 extra cards as Architect.",
+      "timestamp": 1779539120440
+    },
+    {
+      "message": "Bot 1 builds Castle (cost 4).",
+      "timestamp": 1779539120440
+    },
+    {
+      "message": "Bot 3 (murdered King's heir) takes the Crown.",
+      "timestamp": 1779539120440
+    },
+    {
+      "message": "Round 5: Character selection begins.",
+      "timestamp": 1779539120440
+    },
+    {
+      "message": "Bot 3 chose a character.",
+      "timestamp": 1779539120440
+    },
+    {
+      "message": "Deivi chose a character.",
+      "timestamp": 1779539129026
+    },
+    {
+      "message": "Bot 1 chose a character.",
+      "timestamp": 1779539129026
+    },
+    {
+      "message": "Bot 2 chose a character.",
+      "timestamp": 1779539129027
+    },
+    {
+      "message": "Character selection complete. Calling characters...",
+      "timestamp": 1779539129027
+    },
+    {
+      "message": "King (#4) is called. Bot 1 reveals.",
+      "timestamp": 1779539129027
+    },
+    {
+      "message": "Bot 1 takes the Crown.",
+      "timestamp": 1779539129027
+    },
+    {
+      "message": "Bot 1 takes 2 gold. (Total: 3)",
+      "timestamp": 1779539129027
+    },
+    {
+      "message": "Bot 1 collects 1 gold income from districts.",
+      "timestamp": 1779539129027
+    },
+    {
+      "message": "Bot 1 builds Harbor (cost 4).",
+      "timestamp": 1779539129028
+    },
+    {
+      "message": "Bishop (#5) is called. Deivi reveals.",
+      "timestamp": 1779539129028
+    },
+    {
+      "message": "Deivi takes 2 gold. (Total: 2)",
+      "timestamp": 1779539142485
+    },
+    {
+      "message": "Deivi collects 2 gold income from districts.",
+      "timestamp": 1779539143819
+    },
+    {
+      "message": "Deivi builds Castle (cost 4).",
+      "timestamp": 1779539148207
+    },
+    {
+      "message": "Merchant (#6) is called. Bot 3 reveals.",
+      "timestamp": 1779539151679
+    },
+    {
+      "message": "Bot 3 takes 2 gold. (Total: 2)",
+      "timestamp": 1779539151679
+    },
+    {
+      "message": "Bot 3 receives 1 bonus gold as Merchant.",
+      "timestamp": 1779539151679
+    },
+    {
+      "message": "Bot 3 collects 2 gold income from districts.",
+      "timestamp": 1779539151680
+    },
+    {
+      "message": "Bot 3 builds Palace (cost 5).",
+      "timestamp": 1779539151680
+    },
+    {
+      "message": "Warlord (#8) is called. Bot 2 reveals.",
+      "timestamp": 1779539151680
+    },
+    {
+      "message": "Bot 2 takes 2 gold. (Total: 3)",
+      "timestamp": 1779539151680
+    },
+    {
+      "message": "Round 6: Character selection begins.",
+      "timestamp": 1779539151680
+    },
+    {
+      "message": "Bot 1 chose a character.",
+      "timestamp": 1779539151681
+    },
+    {
+      "message": "Bot 2 chose a character.",
+      "timestamp": 1779539151681
+    },
+    {
+      "message": "Bot 3 chose a character.",
+      "timestamp": 1779539151681
+    },
+    {
+      "message": "Deivi chose a character.",
+      "timestamp": 1779539165700
+    },
+    {
+      "message": "Character selection complete. Calling characters...",
+      "timestamp": 1779539165700
+    },
+    {
+      "message": "Assassin (#1) is called. Deivi reveals.",
+      "timestamp": 1779539165700
+    },
+    {
+      "message": "Deivi takes 2 gold. (Total: 2)",
+      "timestamp": 1779539171099
+    },
+    {
+      "message": "Deivi builds Market (cost 2).",
+      "timestamp": 1779539175854
+    },
+    {
+      "message": "Deivi (Assassin) murders the King!",
+      "timestamp": 1779539190897
+    },
+    {
+      "message": "Thief (#2) is called. Bot 3 reveals.",
+      "timestamp": 1779539192225
+    },
+    {
+      "message": "Bot 3 (Thief) targets the Merchant for robbery.",
+      "timestamp": 1779539192225
+    },
+    {
+      "message": "Bot 3 takes 2 gold. (Total: 2)",
+      "timestamp": 1779539192225
+    },
+    {
+      "message": "King was murdered! Bot 2 skips their turn.",
+      "timestamp": 1779539192225
+    },
+    {
+      "message": "Merchant (#6) is called. Bot 1 reveals.",
+      "timestamp": 1779539192225
+    },
+    {
+      "message": "Bot 3 (Thief) steals 0 gold from Bot 1!",
+      "timestamp": 1779539192226
+    },
+    {
+      "message": "Bot 1 takes 2 gold. (Total: 2)",
+      "timestamp": 1779539192226
+    },
+    {
+      "message": "Bot 1 receives 1 bonus gold as Merchant.",
+      "timestamp": 1779539192226
+    },
+    {
+      "message": "Bot 1 collects 2 gold income from districts.",
+      "timestamp": 1779539192226
+    },
+    {
+      "message": "Bot 1 builds Cathedral (cost 5).",
+      "timestamp": 1779539192226
+    },
+    {
+      "message": "Bot 2 (murdered King's heir) takes the Crown.",
+      "timestamp": 1779539192226
+    },
+    {
+      "message": "Round 7: Character selection begins.",
+      "timestamp": 1779539192226
+    },
+    {
+      "message": "Bot 2 chose a character.",
+      "timestamp": 1779539192227
+    },
+    {
+      "message": "Bot 3 chose a character.",
+      "timestamp": 1779539192227
+    },
+    {
+      "message": "Deivi chose a character.",
+      "timestamp": 1779539198415
+    },
+    {
+      "message": "Bot 1 chose a character.",
+      "timestamp": 1779539198415
+    },
+    {
+      "message": "Character selection complete. Calling characters...",
+      "timestamp": 1779539198415
+    },
+    {
+      "message": "Thief (#2) is called. Bot 3 reveals.",
+      "timestamp": 1779539198415
+    },
+    {
+      "message": "Bot 3 (Thief) targets the Merchant for robbery.",
+      "timestamp": 1779539198416
+    },
+    {
+      "message": "Bot 3 takes 2 gold. (Total: 4)",
+      "timestamp": 1779539198416
+    },
+    {
+      "message": "Bot 3 builds Harbor (cost 4).",
+      "timestamp": 1779539198416
+    },
+    {
+      "message": "King (#4) is called. Bot 1 reveals.",
+      "timestamp": 1779539198417
+    },
+    {
+      "message": "Bot 1 takes the Crown.",
+      "timestamp": 1779539198417
+    },
+    {
+      "message": "Bot 1 takes 2 gold. (Total: 2)",
+      "timestamp": 1779539198417
+    },
+    {
+      "message": "Bot 1 collects 1 gold income from districts.",
+      "timestamp": 1779539198417
+    },
+    {
+      "message": "Bot 1 builds Trading Post (cost 2).",
+      "timestamp": 1779539198417
+    },
+    {
+      "message": "Bishop (#5) is called. Deivi reveals.",
+      "timestamp": 1779539198418
+    },
+    {
+      "message": "Deivi takes 2 gold. (Total: 2)",
+      "timestamp": 1779539200628
+    },
+    {
+      "message": "Deivi collects 2 gold income from districts.",
+      "timestamp": 1779539202471
+    },
+    {
+      "message": "Deivi builds Manor (cost 3).",
+      "timestamp": 1779539205658
+    },
+    {
+      "message": "Merchant (#6) is called. Bot 2 reveals.",
+      "timestamp": 1779539209486
+    },
+    {
+      "message": "Bot 3 (Thief) steals 3 gold from Bot 2!",
+      "timestamp": 1779539209486
+    },
+    {
+      "message": "Bot 2 takes 2 gold. (Total: 2)",
+      "timestamp": 1779539209487
+    },
+    {
+      "message": "Bot 2 receives 1 bonus gold as Merchant.",
+      "timestamp": 1779539209487
+    },
+    {
+      "message": "Bot 2 collects 1 gold income from districts.",
+      "timestamp": 1779539209487
+    },
+    {
+      "message": "Round 8: Character selection begins.",
+      "timestamp": 1779539209487
+    },
+    {
+      "message": "Bot 1 chose a character.",
+      "timestamp": 1779539209488
+    },
+    {
+      "message": "Bot 2 chose a character.",
+      "timestamp": 1779539209488
+    },
+    {
+      "message": "Bot 3 chose a character.",
+      "timestamp": 1779539209488
+    },
+    {
+      "message": "Deivi chose a character.",
+      "timestamp": 1779539219406
+    },
+    {
+      "message": "Character selection complete. Calling characters...",
+      "timestamp": 1779539219406
+    },
+    {
+      "message": "Thief (#2) is called. Deivi reveals.",
+      "timestamp": 1779539219406
+    },
+    {
+      "message": "Deivi draws 2 cards and must choose one to keep.",
+      "timestamp": 1779539234112
+    },
+    {
+      "message": "Deivi (Thief) targets the Merchant for robbery.",
+      "timestamp": 1779539246421
+    },
+    {
+      "message": "Magician (#3) is called. Bot 3 reveals.",
+      "timestamp": 1779539248995
+    },
+    {
+      "message": "Bot 3 draws 2 cards and must choose one to keep.",
+      "timestamp": 1779539248996
+    },
+    {
+      "message": "Bot 3 builds Manor (cost 3).",
+      "timestamp": 1779539248997
+    },
+    {
+      "message": "Bot 3 (Magician) swaps hands with Bot 2.",
+      "timestamp": 1779539248997
+    },
+    {
+      "message": "Bishop (#5) is called. Bot 1 reveals.",
+      "timestamp": 1779539248998
+    },
+    {
+      "message": "Bot 1 takes 2 gold. (Total: 3)",
+      "timestamp": 1779539248998
+    },
+    {
+      "message": "Bot 1 collects 1 gold income from districts.",
+      "timestamp": 1779539248999
+    },
+    {
+      "message": "Architect (#7) is called. Bot 2 reveals.",
+      "timestamp": 1779539248999
+    },
+    {
+      "message": "Bot 2 draws 2 cards and must choose one to keep.",
+      "timestamp": 1779539249000
+    },
+    {
+      "message": "Bot 2 draws 2 extra cards as Architect.",
+      "timestamp": 1779539249000
+    },
+    {
+      "message": "Bot 2 builds Watchtower (cost 1).",
+      "timestamp": 1779539249001
+    },
+    {
+      "message": "Bot 2 builds Trading Post (cost 2).",
+      "timestamp": 1779539249001
+    },
+    {
+      "message": "Round 9: Character selection begins.",
+      "timestamp": 1779539249001
+    },
+    {
+      "message": "Bot 1 chose a character.",
+      "timestamp": 1779539249002
+    },
+    {
+      "message": "Bot 2 chose a character.",
+      "timestamp": 1779539249002
+    },
+    {
+      "message": "Bot 3 chose a character.",
+      "timestamp": 1779539249002
+    },
+    {
+      "message": "Deivi chose a character.",
+      "timestamp": 1779539254461
+    },
+    {
+      "message": "Character selection complete. Calling characters...",
+      "timestamp": 1779539254461
+    },
+    {
+      "message": "Assassin (#1) is called. Bot 2 reveals.",
+      "timestamp": 1779539254461
+    },
+    {
+      "message": "Bot 2 (Assassin) murders the Bishop!",
+      "timestamp": 1779539254462
+    },
+    {
+      "message": "Bot 2 takes 2 gold. (Total: 3)",
+      "timestamp": 1779539254462
+    },
+    {
+      "message": "King (#4) is called. Bot 3 reveals.",
+      "timestamp": 1779539254463
+    },
+    {
+      "message": "Bot 3 takes the Crown.",
+      "timestamp": 1779539254463
+    },
+    {
+      "message": "Bot 3 takes 2 gold. (Total: 2)",
+      "timestamp": 1779539254463
+    },
+    {
+      "message": "Bot 3 collects 2 gold income from districts.",
+      "timestamp": 1779539254464
+    },
+    {
+      "message": "Bishop was murdered! Deivi skips their turn.",
+      "timestamp": 1779539254465
+    },
+    {
+      "message": "Merchant (#6) is called. Bot 1 reveals.",
+      "timestamp": 1779539254465
+    },
+    {
+      "message": "Bot 1 takes 2 gold. (Total: 6)",
+      "timestamp": 1779539254465
+    },
+    {
+      "message": "Bot 1 receives 1 bonus gold as Merchant.",
+      "timestamp": 1779539254465
+    },
+    {
+      "message": "Bot 1 collects 3 gold income from districts.",
+      "timestamp": 1779539254465
+    },
+    {
+      "message": "Bot 1 builds Fortress (cost 5).",
+      "timestamp": 1779539254466
+    },
+    {
+      "message": "Round 10: Character selection begins.",
+      "timestamp": 1779539254466
+    },
+    {
+      "message": "Bot 3 chose a character.",
+      "timestamp": 1779539254467
+    },
+    {
+      "message": "Deivi chose a character.",
+      "timestamp": 1779539265803
+    },
+    {
+      "message": "Bot 1 chose a character.",
+      "timestamp": 1779539265804
+    },
+    {
+      "message": "Bot 2 chose a character.",
+      "timestamp": 1779539265804
+    },
+    {
+      "message": "Character selection complete. Calling characters...",
+      "timestamp": 1779539265804
+    },
+    {
+      "message": "Assassin (#1) is called. Bot 2 reveals.",
+      "timestamp": 1779539265804
+    },
+    {
+      "message": "Bot 2 (Assassin) murders the Architect!",
+      "timestamp": 1779539265804
+    },
+    {
+      "message": "Bot 2 draws 2 cards and must choose one to keep.",
+      "timestamp": 1779539265804
+    },
+    {
+      "message": "King (#4) is called. Bot 3 reveals.",
+      "timestamp": 1779539265805
+    },
+    {
+      "message": "Bot 3 takes the Crown.",
+      "timestamp": 1779539265805
+    },
+    {
+      "message": "Bot 3 takes 2 gold. (Total: 6)",
+      "timestamp": 1779539265806
+    },
+    {
+      "message": "Bot 3 collects 2 gold income from districts.",
+      "timestamp": 1779539265806
+    },
+    {
+      "message": "Bot 3 builds University (cost 6).",
+      "timestamp": 1779539265806
+    },
+    {
+      "message": "Bishop (#5) is called. Bot 1 reveals.",
+      "timestamp": 1779539265806
+    },
+    {
+      "message": "Bot 1 draws 2 cards and must choose one to keep.",
+      "timestamp": 1779539265806
+    },
+    {
+      "message": "Bot 1 collects 1 gold income from districts.",
+      "timestamp": 1779539265807
+    },
+    {
+      "message": "Bot 1 builds Observatory (cost 5).",
+      "timestamp": 1779539265807
+    },
+    {
+      "message": "Bot 1 has built 8 districts! This is the final round.",
+      "timestamp": 1779539265807
+    },
+    {
+      "message": "Warlord (#8) is called. Deivi reveals.",
+      "timestamp": 1779539265807
+    },
+    {
+      "message": "Deivi takes 2 gold. (Total: 3)",
+      "timestamp": 1779539306113
+    },
+    {
+      "message": "Game over! Bot 1 wins with 37 points!",
+      "timestamp": 1779539321728
+    }
+  ]
+}

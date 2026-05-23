@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+:root {
+  --color-noble: #eab308;
+  --color-religious: #3b82f6;
+  --color-trade: #22c55e;
+  --color-military: #ef4444;
+  --color-special: #a855f7;
+  --color-gold: #fbbf24;
+}
+
+body {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
