@@ -29,6 +29,7 @@ export default function Home() {
         view={gameView}
         onAction={sendAction}
         actionError={actionError}
+        roomId={roomId}
       />
     );
   }

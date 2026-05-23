@@ -22,9 +22,10 @@ interface GameBoardProps {
   view: PlayerGameView;
   onAction: (action: any) => void;
   actionError: string | null;
+  roomId?: string | null;
 }
 
-export function GameBoard({ view, onAction, actionError }: GameBoardProps) {
+export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProps) {
   const me = view.players[view.myIndex];
   const turnState = view.turnState;
   const isMyTurn = view.isMyTurn;
@@ -72,6 +73,17 @@ export function GameBoard({ view, onAction, actionError }: GameBoardProps) {
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-4">
             <h1 className="text-lg font-bold text-amber-400">Citadels</h1>
+            {roomId && (
+              <button
+                onClick={() => navigator.clipboard.writeText(roomId)}
+                className="flex items-center gap-1 px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-xs transition-colors group"
+                title="Click to copy room code"
+              >
+                <span className="text-slate-400">Room:</span>
+                <span className="text-amber-300 font-bold tracking-widest">{roomId}</span>
+                <span className="text-slate-500 group-hover:text-slate-300 text-[10px]">&#x2398;</span>
+              </button>
+            )}
             <span className="text-xs text-slate-400">Round {view.round}</span>
             <span className="text-xs text-slate-400">Deck: {view.districtDeckCount}</span>
           </div>
