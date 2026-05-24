@@ -84,7 +84,3 @@ body {
   }
 }
 
-/* Mobile landscape: tighter spacing */
-@media (max-width: 767px) and (orientation: landscape) {
-  .hand-tray { padding-top: 2px; padding-bottom: 2px; }
-}
