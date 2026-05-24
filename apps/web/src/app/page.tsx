@@ -37,11 +37,11 @@ export default function Home() {
   // Waiting room — show lobby
   if (roomId && lobbyState && lobbyState.waiting) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="h-[100dvh] overflow-y-auto flex items-start md:items-center justify-center p-2 md:p-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 max-w-md w-full border border-slate-600 shadow-2xl text-center"
+          className="bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-8 max-w-md w-full border border-slate-600 shadow-2xl text-center my-auto"
         >
           <h1 className="text-3xl font-bold text-amber-400 mb-2">Citadels</h1>
           <p className="text-slate-400 text-sm mb-6">Waiting for players to join...</p>
@@ -104,33 +104,33 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="h-[100dvh] overflow-y-auto flex items-start md:items-center justify-center p-2 md:p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 max-w-md w-full border border-slate-600 shadow-2xl"
+        className="bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-8 max-w-md w-full border border-slate-600 shadow-2xl my-auto"
       >
         {/* Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-amber-400 mb-2">Citadels</h1>
-          <p className="text-slate-400 text-sm">Build the most prosperous city in the realm</p>
+        <div className="text-center mb-3 md:mb-8">
+          <h1 className="text-2xl md:text-4xl font-bold text-amber-400 mb-1">Citadels</h1>
+          <p className="text-slate-400 text-xs md:text-sm hidden md:block">Build the most prosperous city in the realm</p>
         </div>
 
         {/* Player name */}
-        <div className="mb-6">
-          <label className="block text-sm text-slate-300 mb-1">Your Name</label>
+        <div className="mb-3 md:mb-6">
+          <label className="block text-xs md:text-sm text-slate-300 mb-1">Your Name</label>
           <input
             type="text"
             value={playerName}
             onChange={e => setPlayerName(e.target.value)}
             onBlur={saveName}
             placeholder="Enter your name"
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full px-3 md:px-4 py-1.5 md:py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-4 bg-slate-900/50 rounded-lg p-1">
+        <div className="flex gap-1 mb-3 md:mb-4 bg-slate-900/50 rounded-lg p-1">
           {([
             ['single', 'Solo'],
             ['multi', 'Host'],
@@ -140,7 +140,7 @@ export default function Home() {
             <button
               key={key}
               onClick={() => { setTab(key); if (key === 'load') listSaves(); }}
-              className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 px-2 md:px-3 py-1 md:py-1.5 rounded-md text-xs md:text-sm font-medium transition-colors ${
                 tab === key ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -151,15 +151,15 @@ export default function Home() {
 
         {/* Tab content */}
         {tab === 'single' && (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Number of Bots</label>
-              <div className="flex gap-2">
+              <label className="block text-xs md:text-sm text-slate-300 mb-1">Bots</label>
+              <div className="flex gap-1.5 md:gap-2">
                 {[1, 2, 3, 4, 5, 6].map(n => (
                   <button
                     key={n}
                     onClick={() => setBotCount(n)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
                       botCount === n ? 'bg-amber-600' : 'bg-slate-700 hover:bg-slate-600'
                     }`}
                   >
@@ -167,12 +167,12 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-1">{botCount + 1} total players</p>
+              <p className="text-[10px] md:text-xs text-slate-500 mt-1">{botCount + 1} total players</p>
             </div>
             <button
               onClick={() => { saveName(); createGame(playerName.trim() || 'Player', botCount); }}
               disabled={!playerName.trim()}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+              className="w-full py-2 md:py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-sm font-semibold transition-colors"
             >
               Start Game
             </button>
@@ -180,15 +180,15 @@ export default function Home() {
         )}
 
         {tab === 'multi' && (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Human Players</label>
-              <div className="flex gap-2">
+              <label className="block text-xs md:text-sm text-slate-300 mb-1">Human Players</label>
+              <div className="flex gap-1.5 md:gap-2">
                 {[2, 3, 4, 5, 6, 7].map(n => (
                   <button
                     key={n}
                     onClick={() => setTotalHumans(n)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
                       totalHumans === n ? 'bg-amber-600' : 'bg-slate-700 hover:bg-slate-600'
                     }`}
                   >
@@ -198,13 +198,13 @@ export default function Home() {
               </div>
             </div>
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Additional Bots</label>
-              <div className="flex gap-2">
+              <label className="block text-xs md:text-sm text-slate-300 mb-1">Additional Bots</label>
+              <div className="flex gap-1.5 md:gap-2">
                 {Array.from({ length: Math.min(6, 8 - totalHumans) }, (_, i) => i).map(n => (
                   <button
                     key={n}
                     onClick={() => setMultiBots(n)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
                       multiBots === n ? 'bg-amber-600' : 'bg-slate-700 hover:bg-slate-600'
                     }`}
                   >
@@ -212,12 +212,12 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-1">{totalHumans + multiBots} total players</p>
+              <p className="text-[10px] md:text-xs text-slate-500 mt-1">{totalHumans + multiBots} total players</p>
             </div>
             <button
               onClick={() => { saveName(); createMultiplayerRoom(playerName.trim() || 'Player', totalHumans, multiBots); }}
               disabled={!playerName.trim() || totalHumans + multiBots < 2 || totalHumans + multiBots > 7}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+              className="w-full py-2 md:py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-sm font-semibold transition-colors"
             >
               Create Room
             </button>
@@ -225,22 +225,22 @@ export default function Home() {
         )}
 
         {tab === 'join' && (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Room Code</label>
+              <label className="block text-xs md:text-sm text-slate-300 mb-1">Room Code</label>
               <input
                 type="text"
                 value={joinCode}
                 onChange={e => setJoinCode(e.target.value.toUpperCase())}
                 placeholder="Enter room code"
-                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase tracking-widest text-center text-lg"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase tracking-widest text-center"
                 maxLength={6}
               />
             </div>
             <button
               onClick={() => { saveName(); joinRoom(joinCode, playerName.trim() || 'Player'); }}
               disabled={!playerName.trim() || joinCode.length < 4}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+              className="w-full py-2 md:py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-sm font-semibold transition-colors"
             >
               Join Game
             </button>
@@ -248,16 +248,16 @@ export default function Home() {
         )}
 
         {tab === 'load' && (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {savedGames.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-4">No saved games found</p>
+              <p className="text-xs md:text-sm text-slate-400 text-center py-3">No saved games found</p>
             ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-1.5 max-h-32 md:max-h-48 overflow-y-auto">
                 {savedGames.map(id => (
                   <button
                     key={id}
                     onClick={() => { saveName(); loadGame(id, playerName.trim() || 'Player'); }}
-                    className="w-full px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-left text-sm transition-colors"
+                    className="w-full px-3 md:px-4 py-2 md:py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-left text-xs md:text-sm transition-colors"
                   >
                     Game {id}
                   </button>
@@ -269,10 +269,10 @@ export default function Home() {
 
         {/* Room code display */}
         {roomId && !gameView && (
-          <div className="mt-4 p-4 bg-slate-900/50 rounded-lg text-center">
-            <p className="text-sm text-slate-400 mb-1">Room Code</p>
-            <p className="text-2xl font-bold text-amber-400 tracking-widest">{roomId}</p>
-            <p className="text-xs text-slate-500 mt-1">Share this code with other players</p>
+          <div className="mt-3 p-3 bg-slate-900/50 rounded-lg text-center">
+            <p className="text-xs text-slate-400 mb-1">Room Code</p>
+            <p className="text-xl md:text-2xl font-bold text-amber-400 tracking-widest">{roomId}</p>
+            <p className="text-[10px] text-slate-500 mt-1">Share this code with other players</p>
           </div>
         )}
 
@@ -281,7 +281,7 @@ export default function Home() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-4 p-3 bg-red-900/30 border border-red-700 rounded-lg text-sm text-red-300"
+            className="mt-3 p-2 md:p-3 bg-red-900/30 border border-red-700 rounded-lg text-xs md:text-sm text-red-300"
           >
             {error}
           </motion.div>
