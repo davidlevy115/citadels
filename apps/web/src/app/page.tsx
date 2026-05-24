@@ -37,11 +37,11 @@ export default function Home() {
   // Waiting room — show lobby
   if (roomId && lobbyState && lobbyState.waiting) {
     return (
-      <div className="h-[100dvh] overflow-y-auto flex items-start justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 max-w-md w-full border border-slate-600 shadow-2xl text-center my-4"
+          className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 max-w-md w-full border border-slate-600 shadow-2xl text-center"
         >
           <h1 className="text-3xl font-bold text-amber-400 mb-2">Citadels</h1>
           <p className="text-slate-400 text-sm mb-6">Waiting for players to join...</p>
@@ -104,11 +104,11 @@ export default function Home() {
   };
 
   return (
-    <div className="h-[100dvh] overflow-y-auto flex items-start justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 max-w-md w-full border border-slate-600 shadow-2xl my-4"
+        className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 max-w-md w-full border border-slate-600 shadow-2xl"
       >
         {/* Title */}
         <div className="text-center mb-8">
