@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { PlayerGameView, DistrictCard, Character, BuiltDistrict } from '@citadels/game-logic';
+import type { PlayerGameView, PlayerPublicInfo, DistrictCard, Character, BuiltDistrict } from '@citadels/game-logic';
 import { CHARACTERS } from '@citadels/game-logic';
 import { DistrictCardView } from './Card';
 import { DistrictDetailModal, CharacterDetailModal } from './CardDetailModal';
@@ -12,6 +12,7 @@ import { RoundEvents } from './RoundEvents';
 import { RemovedCharacters } from './RemovedCharacters';
 import { GoldDisplay } from './GoldDisplay';
 import { PowerActions } from './PowerActions';
+import { GameLog } from './GameLog';
 
 type DetailTarget =
   | { type: 'district'; card: DistrictCard | BuiltDistrict }
@@ -43,6 +44,9 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
         <CharacterSelect
           characters={view.availableCharacters}
           removedFaceUp={view.removedCharactersFaceUp}
+          players={view.players}
+          myIndex={view.myIndex}
+          crownPlayerIndex={view.crownPlayerIndex}
           onSelect={(rank) => onAction({ type: 'CHOOSE_CHARACTER', characterRank: rank })}
           onDetail={(char) => setDetailTarget({ type: 'character', character: char })}
         />
@@ -50,6 +54,7 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
       {turnState?.phase === 'choosingCard' && isMyTurn && turnState.drawnCards.length > 0 && (
         <CardChoiceOverlay
           cards={turnState.drawnCards}
+          myHand={view.myHand}
           onChoose={(idx) => onAction({ type: 'KEEP_CARD', cardIndex: idx })}
           onDetail={(card) => setDetailTarget({ type: 'district', card })}
         />
@@ -96,11 +101,31 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
         </div>
       </div>
 
-      {/* Main board: players on sides, felt table center */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      {/* ═══ MOBILE LANDSCAPE: opponents strip + center ═══ */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
 
-        {/* Left column: first half of opponents */}
-        <div className="w-52 lg:w-60 shrink-0 p-2 space-y-1.5 overflow-y-auto">
+        {/* Mobile: horizontal opponents strip */}
+        <div className="md:hidden shrink-0 flex gap-1.5 px-2 py-1 overflow-x-auto">
+          {otherPlayers.map((p) => {
+            const idx = view.players.findIndex(pl => pl.id === p.id);
+            const charRank = p.revealedCharacter?.rank;
+            return (
+              <PlayerSeatCompact
+                key={p.id}
+                player={p}
+                hasCrown={idx === view.crownPlayerIndex}
+                isActive={view.phase === 'playerTurns' && charRank === view.currentCharacterRank}
+                isMurdered={charRank != null && view.murderedCharacter === charRank}
+                isRobbed={charRank != null && view.robbedCharacter === charRank}
+                onCharacterClick={p.revealedCharacter ? () => setDetailTarget({ type: 'character', character: p.revealedCharacter! }) : undefined}
+                onDistrictClick={(d) => setDetailTarget({ type: 'district', card: d })}
+              />
+            );
+          })}
+        </div>
+
+        {/* Desktop: Left column */}
+        <div className="hidden md:block w-52 lg:w-60 shrink-0 p-2 space-y-1.5 overflow-y-auto">
           {otherPlayers.filter((_, i) => i < Math.ceil(otherPlayers.length / 2)).map((p) => {
             const idx = view.players.findIndex(pl => pl.id === p.id);
             const charRank = p.revealedCharacter?.rank;
@@ -122,11 +147,11 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
         </div>
 
         {/* Center: felt table */}
-        <div className="flex-1 flex flex-col min-w-0 p-2">
-          <div className="felt-surface flex-1 rounded-xl p-3 lg:p-4 flex flex-col min-h-0 overflow-y-auto">
+        <div className="flex-1 flex flex-col min-w-0 p-1 md:p-2">
+          <div className="felt-surface flex-1 rounded-xl p-2 md:p-3 lg:p-4 flex flex-col min-h-0 overflow-y-auto">
 
             {/* Phase banner */}
-            <div className="text-center mb-2">
+            <div className="text-center mb-1 md:mb-2">
               {view.phase === 'chooseCharacters' && (
                 <div>
                   <div className="text-[10px] text-emerald-600 uppercase tracking-[0.2em]">Round {view.round}</div>
@@ -148,7 +173,7 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
 
             {/* Removed characters */}
             {(view.removedCharactersFaceUp.length > 0 || view.removedCharactersFaceDownCount > 0) && view.phase !== 'gameOver' && (
-              <div className="mb-2">
+              <div className="mb-1 md:mb-2">
                 <RemovedCharacters
                   faceUp={view.removedCharactersFaceUp}
                   faceDownCount={view.removedCharactersFaceDownCount}
@@ -159,7 +184,7 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
 
             {/* Round events */}
             {view.phase === 'playerTurns' && view.roundEvents.length > 0 && (
-              <div className="mb-2">
+              <div className="mb-1 md:mb-2">
                 <RoundEvents
                   events={view.roundEvents}
                   murderedCharacter={view.murderedCharacter}
@@ -174,7 +199,7 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
               {actionError && (
                 <motion.div
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="bg-red-900/60 border border-red-700 rounded-lg px-3 py-1.5 text-xs text-red-300 mb-2"
+                  className="bg-red-900/60 border border-red-700 rounded-lg px-3 py-1.5 text-xs text-red-300 mb-1 md:mb-2"
                 >
                   {actionError}
                 </motion.div>
@@ -183,7 +208,7 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
 
             {/* Action controls */}
             {isMyTurn && turnState && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-1.5 md:space-y-2">
                 <div className="text-center text-[11px] text-cyan-300 font-medium">
                   {!turnState.actionTaken ? 'Your turn — choose an action'
                     : turnState.phase === 'choosingCard' ? 'Pick a card to keep'
@@ -193,11 +218,11 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
                 {!turnState.actionTaken && (
                   <div className="flex gap-2 justify-center">
                     <button onClick={() => onAction({ type: 'TAKE_GOLD' })}
-                      className="px-4 py-2 bg-yellow-700 hover:bg-yellow-600 rounded-lg text-sm font-bold transition-colors shadow-lg text-yellow-100">
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-yellow-700 hover:bg-yellow-600 rounded-lg text-sm font-bold transition-colors shadow-lg text-yellow-100">
                       &#9733; Take Gold
                     </button>
                     <button onClick={() => onAction({ type: 'DRAW_CARDS' })}
-                      className="px-4 py-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg text-sm font-bold transition-colors shadow-lg text-emerald-100">
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg text-sm font-bold transition-colors shadow-lg text-emerald-100">
                       &#9830; Draw Cards
                     </button>
                   </div>
@@ -232,11 +257,16 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
                 </motion.div>
               </div>
             )}
+
+            {/* Game log */}
+            {view.phase !== 'gameOver' && (
+              <GameLog log={view.log} currentRound={view.round} />
+            )}
           </div>
         </div>
 
-        {/* Right column: second half of opponents */}
-        <div className="w-52 lg:w-60 shrink-0 p-2 space-y-1.5 overflow-y-auto">
+        {/* Desktop: Right column */}
+        <div className="hidden md:block w-52 lg:w-60 shrink-0 p-2 space-y-1.5 overflow-y-auto">
           {otherPlayers.filter((_, i) => i >= Math.ceil(otherPlayers.length / 2)).map((p) => {
             const idx = view.players.findIndex(pl => pl.id === p.id);
             const charRank = p.revealedCharacter?.rank;
@@ -259,8 +289,8 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
       </div>
 
       {/* Bottom: My hand tray */}
-      <div className="hand-tray shrink-0 px-3 py-2">
-        <div className="flex items-center gap-4 max-w-5xl mx-auto">
+      <div className="hand-tray shrink-0 px-2 md:px-3 py-1 md:py-2">
+        <div className="flex items-center gap-2 md:gap-4 max-w-5xl mx-auto">
           {/* My info compact */}
           <div className="shrink-0 flex items-center gap-2">
             {view.myCharacter && (
@@ -304,7 +334,7 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
                       card={card}
                       onClick={canBuild ? () => onAction({ type: 'BUILD_DISTRICT', cardIndex: i }) : undefined}
                       onDetail={() => setDetailTarget({ type: 'district', card })}
-                      disabled={!canBuild}
+                      buildable={!!canBuild}
                       small
                     />
                   </motion.div>
@@ -355,19 +385,93 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
 
 // ── Sub-overlays ────────────────────────────────────────────────
 
-function CardChoiceOverlay({ cards, onChoose, onDetail }: { cards: DistrictCard[]; onChoose: (i: number) => void; onDetail: (card: DistrictCard) => void }) {
+function CardChoiceOverlay({ cards, myHand, onChoose, onDetail }: { cards: DistrictCard[]; myHand: DistrictCard[]; onChoose: (i: number) => void; onDetail: (card: DistrictCard) => void }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-800 rounded-xl p-5 border border-slate-600">
-        <h2 className="text-base font-bold text-center mb-3 text-amber-300">Choose a Card</h2>
-        <div className="flex gap-3 justify-center">
+      <div className="bg-slate-800 rounded-xl p-5 border border-slate-600 max-w-lg w-full mx-4 max-h-[90dvh] overflow-y-auto">
+        <h2 className="text-base font-bold text-center mb-1 text-amber-300">Choose a Card to Keep</h2>
+        <p className="text-xs text-slate-400 text-center mb-4">The other{cards.length > 2 ? 's go' : ' goes'} back to the deck</p>
+        <div className="flex gap-4 justify-center flex-wrap">
           {cards.map((card, i) => (
-            <DistrictCardView key={i} card={card} onClick={() => onChoose(i)} onDetail={() => onDetail(card)} />
+            <div key={i} className="flex flex-col items-center gap-2">
+              <DistrictCardView card={card} onDetail={() => onDetail(card)} />
+              <button
+                onClick={() => onChoose(i)}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-bold text-white transition-colors shadow-lg w-full"
+              >
+                Keep
+              </button>
+            </div>
           ))}
         </div>
+
+        {/* Show current hand */}
+        {myHand.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-slate-700">
+            <p className="text-[10px] text-slate-500 text-center mb-2 uppercase tracking-wide">Your current hand</p>
+            <div className="flex gap-1.5 justify-center flex-wrap">
+              {myHand.map((card) => (
+                <DistrictCardView key={card.id} card={card} small disabled onDetail={() => onDetail(card)} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
+  );
+}
+
+function PlayerSeatCompact({ player, hasCrown, isActive, isMurdered, isRobbed, onCharacterClick, onDistrictClick }: {
+  player: PlayerPublicInfo;
+  hasCrown: boolean;
+  isActive: boolean;
+  isMurdered: boolean;
+  isRobbed: boolean;
+  onCharacterClick?: () => void;
+  onDistrictClick?: (d: BuiltDistrict) => void;
+}) {
+  const char = player.revealedCharacter;
+  return (
+    <div
+      className={`
+        shrink-0 rounded-lg px-2 py-1 flex items-center gap-1.5 select-none
+        ${isActive ? 'ring-1 ring-yellow-400/80' : ''}
+        ${isMurdered ? 'opacity-50' : ''}
+      `}
+      style={{
+        background: 'linear-gradient(180deg, rgba(60,40,28,0.95) 0%, rgba(30,20,12,0.95) 100%)',
+        border: '1px solid rgba(100,70,40,0.5)',
+      }}
+    >
+      {/* Portrait */}
+      <button onClick={onCharacterClick} className="shrink-0">
+        <div className={`w-7 h-7 rounded-full overflow-hidden border ${isActive ? 'border-yellow-400' : 'border-slate-600'}`}>
+          {char ? (
+            <img src={`/images/cards/characters/${char.name.toLowerCase()}.jpg`} alt={char.name}
+              className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-slate-800 flex items-center justify-center text-slate-600 text-[10px]">?</div>
+          )}
+        </div>
+      </button>
+
+      <div className="min-w-0">
+        <div className="flex items-center gap-0.5">
+          {hasCrown && <span className="text-yellow-400 text-[10px]">&#9813;</span>}
+          <span className="text-[10px] font-bold text-amber-100 truncate max-w-[60px]">{player.name}</span>
+        </div>
+        <div className="flex items-center gap-1 text-[9px]">
+          <span className="text-yellow-400 tabular-nums">{player.gold}g</span>
+          <span className="text-slate-400 tabular-nums">{player.handSize}c</span>
+          {player.city.length > 0 && (
+            <span className="text-emerald-400 tabular-nums">{player.city.length}d</span>
+          )}
+          {isMurdered && <span className="text-red-400">{'\u2620'}</span>}
+          {isRobbed && !isMurdered && <span className="text-amber-400">{'\u2666'}</span>}
+        </div>
+      </div>
+    </div>
   );
 }
 

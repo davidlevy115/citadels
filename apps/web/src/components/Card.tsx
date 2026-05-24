@@ -46,24 +46,35 @@ interface DistrictCardProps {
   selected?: boolean;
   disabled?: boolean;
   small?: boolean;
+  buildable?: boolean;
 }
 
-export function DistrictCardView({ card, onClick, onDetail, selected, disabled, small }: DistrictCardProps) {
+export function DistrictCardView({ card, onClick, onDetail, selected, disabled, small, buildable }: DistrictCardProps) {
   const [imgError, setImgError] = useState(false);
   const border = TYPE_BORDER[card.type] || TYPE_BORDER.special;
   const bg = TYPE_BG[card.type] || TYPE_BG.special;
   const textColor = TYPE_TEXT[card.type] || TYPE_TEXT.special;
   const icon = DISTRICT_TYPE_ICON[card.type] || '\u2726';
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleCardClick = (e: React.MouseEvent) => {
     if (disabled && onDetail) {
-      // disabled cards (in city) can still be inspected
       e.stopPropagation();
       onDetail();
       return;
     }
-    if (onClick) onClick();
-    else if (onDetail) onDetail();
+    // If buildable, card click = build. Otherwise, show detail.
+    if (buildable && onClick) {
+      onClick();
+    } else if (onDetail) {
+      onDetail();
+    } else if (onClick) {
+      onClick();
+    }
+  };
+
+  const handleInfoClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDetail) onDetail();
   };
 
   if (small) {
@@ -71,11 +82,12 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
       <motion.div
         whileHover={{ y: -4, scale: 1.08 }}
         whileTap={{ scale: 0.95 }}
-        onClick={handleClick}
+        onClick={handleCardClick}
         className={`
           relative rounded-lg border-2 overflow-hidden cursor-pointer select-none
           ${border}
           ${selected ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900' : ''}
+          ${buildable ? 'ring-2 ring-cyan-400/60' : ''}
           w-[72px] h-[100px]
         `}
       >
@@ -101,8 +113,28 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
           {card.cost}
         </div>
 
-        {/* Type icon */}
-        <div className={`absolute top-1 right-1 text-xs ${textColor}`}>{icon}</div>
+        {/* Info button */}
+        {onDetail && !disabled && (
+          <button
+            onClick={handleInfoClick}
+            className="absolute top-1 right-1 w-4 h-4 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-[8px] text-white font-bold z-10 transition-colors"
+          >
+            i
+          </button>
+        )}
+        {/* Type icon (only when no info button) */}
+        {(!onDetail || disabled) && (
+          <div className={`absolute top-1 right-1 text-xs ${textColor}`}>{icon}</div>
+        )}
+
+        {/* Build badge */}
+        {buildable && (
+          <div className="absolute top-[50%] -translate-y-1/2 inset-x-0 flex justify-center z-10">
+            <div className="px-2 py-0.5 bg-cyan-600 rounded text-[8px] font-bold text-white shadow-lg">
+              BUILD
+            </div>
+          </div>
+        )}
 
         {/* Name */}
         <div className="absolute bottom-0 inset-x-0 px-1 pb-1.5">
@@ -119,13 +151,14 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
     <motion.div
       whileHover={!disabled ? { y: -10, scale: 1.05 } : { scale: 1.02 }}
       whileTap={{ scale: 0.95 }}
-      onClick={handleClick}
+      onClick={handleCardClick}
       className={`
         relative rounded-xl border-2 overflow-hidden cursor-pointer select-none
         transition-shadow
         ${border}
         ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
         ${disabled ? 'opacity-60' : 'hover:shadow-xl hover:shadow-black/40'}
+        ${buildable ? 'ring-2 ring-cyan-400/60' : ''}
         w-[120px] h-[170px]
       `}
     >
@@ -151,10 +184,29 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
         {card.cost}
       </div>
 
+      {/* Info button */}
+      {onDetail && (
+        <button
+          onClick={handleInfoClick}
+          className="absolute top-2 right-2 w-6 h-6 bg-white/25 hover:bg-white/50 rounded-full flex items-center justify-center text-[10px] text-white font-bold z-10 transition-colors"
+        >
+          i
+        </button>
+      )}
+
       {/* Type badge */}
-      <div className={`absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-black/50 backdrop-blur-sm ${textColor}`}>
+      <div className={`absolute top-10 right-2 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-black/50 backdrop-blur-sm ${textColor}`}>
         {icon} {TYPE_LABELS[card.type]}
       </div>
+
+      {/* Build badge */}
+      {buildable && (
+        <div className="absolute top-[45%] -translate-y-1/2 inset-x-0 flex justify-center z-10">
+          <div className="px-3 py-1 bg-cyan-600 rounded-lg text-xs font-bold text-white shadow-lg">
+            BUILD
+          </div>
+        </div>
+      )}
 
       {/* Bottom content */}
       <div className="absolute bottom-0 inset-x-0 p-2.5">
@@ -170,15 +222,6 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
           </div>
         )}
       </div>
-
-      {/* Detail indicator */}
-      {onDetail && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-0 hover:opacity-100 transition-opacity">
-          <div className="text-[8px] bg-white/20 backdrop-blur rounded px-1.5 py-0.5 text-white">
-            Click for details
-          </div>
-        </div>
-      )}
     </motion.div>
   );
 }
