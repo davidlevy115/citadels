@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { PlayerGameView, PlayerPublicInfo, DistrictCard, Character, BuiltDistrict } from '@citadels/game-logic';
+import type { PlayerGameView, DistrictCard, Character, BuiltDistrict } from '@citadels/game-logic';
 import { CHARACTERS } from '@citadels/game-logic';
 import { DistrictCardView } from './Card';
 import { DistrictDetailModal, CharacterDetailModal } from './CardDetailModal';
@@ -13,22 +13,6 @@ import { RemovedCharacters } from './RemovedCharacters';
 import { GoldDisplay } from './GoldDisplay';
 import { PowerActions } from './PowerActions';
 import { GameLog } from './GameLog';
-
-const PILL_BG: Record<string, string> = {
-  noble: 'bg-yellow-900/60 border-yellow-700/60',
-  religious: 'bg-blue-900/60 border-blue-700/60',
-  trade: 'bg-green-900/60 border-green-700/60',
-  military: 'bg-red-900/60 border-red-700/60',
-  special: 'bg-purple-900/60 border-purple-700/60',
-};
-
-const PILL_TEXT: Record<string, string> = {
-  noble: 'text-yellow-200',
-  religious: 'text-blue-200',
-  trade: 'text-green-200',
-  military: 'text-red-200',
-  special: 'text-purple-200',
-};
 
 type DetailTarget =
   | { type: 'district'; card: DistrictCard | BuiltDistrict }
@@ -52,8 +36,8 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
   const otherPlayers = view.players.filter((_, i) => i !== view.myIndex);
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden">
-      {/* ═══ SHARED OVERLAYS ═══ */}
+    <div className="min-h-[100dvh] flex flex-col">
+      {/* Overlays */}
       {view.isMyTurnToChoose && view.availableCharacters.length > 0 && (
         <CharacterSelect
           characters={view.availableCharacters}
@@ -84,22 +68,22 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
       </AnimatePresence>
 
       {/* ═══ TOP BAR ═══ */}
-      <div className="shrink-0 flex items-center justify-between px-2 md:px-3 py-0.5 md:py-1.5" style={{ background: 'rgba(20,12,8,0.9)' }}>
-        <div className="flex items-center gap-2 md:gap-3">
-          <span className="text-xs md:text-sm font-bold text-amber-400 tracking-wide">CITADELS</span>
+      <div className="shrink-0 flex items-center justify-between px-3 py-1.5" style={{ background: 'rgba(20,12,8,0.9)' }}>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold text-amber-400 tracking-wide">CITADELS</span>
           {roomId && (
             <button
               onClick={() => navigator.clipboard.writeText(roomId)}
-              className="px-1.5 py-0.5 bg-amber-900/40 hover:bg-amber-900/60 rounded text-[9px] md:text-[10px] text-amber-300 font-mono tracking-widest transition-colors"
+              className="px-2 py-0.5 bg-amber-900/40 hover:bg-amber-900/60 rounded text-[10px] text-amber-300 font-mono tracking-widest transition-colors"
               title="Click to copy room code"
             >
               {roomId}
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-[11px] text-slate-400">
-          <span>R{view.round}</span>
-          <span className="hidden md:inline">Deck {view.districtDeckCount}</span>
+        <div className="flex items-center gap-3 text-[11px] text-slate-400">
+          <span>Round {view.round}</span>
+          <span>Deck {view.districtDeckCount}</span>
           {view.myCharacter && (
             <button
               onClick={() => setDetailTarget({ type: 'character', character: view.myCharacter! })}
@@ -108,233 +92,41 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
               {view.myCharacter.name}
             </button>
           )}
-          {/* Mobile: inline gold */}
-          <span className="md:hidden text-yellow-400 font-bold">{me?.gold ?? 0}g</span>
           {view.gameEndTriggered && (
-            <span className="bg-red-600 px-1 py-0.5 rounded text-[9px] text-white animate-pulse">FINAL</span>
+            <span className="bg-red-600 px-1.5 py-0.5 rounded text-[10px] text-white animate-pulse">FINAL</span>
           )}
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* ═══ MOBILE LANDSCAPE LAYOUT (< md) ═══                */}
-      {/* ═══════════════════════════════════════════════════════ */}
-      <div className="md:hidden flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* ═══ MAIN BOARD ═══ */}
+      {/* Narrow screens: vertical stack. Wide screens: 3-column */}
+      <div className="flex-1 flex flex-col md:flex-row min-h-[300px]">
 
-        {/* Opponents strip */}
-        <div className="shrink-0 flex items-center gap-1 px-2 py-0.5" style={{ background: 'rgba(30,20,12,0.7)' }}>
+        {/* Opponents — stacked vertically on narrow, side columns on wide */}
+        {/* Narrow: all opponents in one section */}
+        <div className="md:hidden p-2 space-y-1.5">
           {otherPlayers.map((p) => {
             const idx = view.players.findIndex(pl => pl.id === p.id);
             const charRank = p.revealedCharacter?.rank;
-            const isActive = view.phase === 'playerTurns' && charRank === view.currentCharacterRank;
-            const isMurdered = charRank != null && view.murderedCharacter === charRank;
             return (
-              <button
+              <PlayerSeat
                 key={p.id}
-                onClick={p.revealedCharacter ? () => setDetailTarget({ type: 'character', character: p.revealedCharacter! }) : undefined}
-                className={`
-                  flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] shrink-0
-                  ${isActive ? 'bg-yellow-900/50 ring-1 ring-yellow-500/60' : 'bg-slate-800/50'}
-                  ${isMurdered ? 'opacity-40' : ''}
-                `}
-              >
-                {idx === view.crownPlayerIndex && <span className="text-yellow-400 text-[8px]">&#9813;</span>}
-                <span className="text-amber-100 font-medium truncate max-w-[50px]">{p.name}</span>
-                <span className="text-yellow-400">{p.gold}g</span>
-                <span className="text-slate-500">{p.handSize}c</span>
-                {p.city.length > 0 && <span className="text-emerald-400">{p.city.length}d</span>}
-              </button>
+                player={p}
+                isMe={false}
+                hasCrown={idx === view.crownPlayerIndex}
+                isActive={view.phase === 'playerTurns' && charRank === view.currentCharacterRank}
+                isMurdered={charRank != null && view.murderedCharacter === charRank}
+                isRobbed={charRank != null && view.robbedCharacter === charRank}
+                latestActions={getPlayerActions(view.log, p.name, 1)}
+                onCharacterClick={p.revealedCharacter ? () => setDetailTarget({ type: 'character', character: p.revealedCharacter! }) : undefined}
+                onDistrictClick={(d) => setDetailTarget({ type: 'district', card: d })}
+              />
             );
           })}
         </div>
 
-        {/* Center action area */}
-        <div className="flex-1 flex flex-col min-h-0 px-2 py-1">
-          <div className="felt-surface flex-1 rounded-lg p-2 flex flex-col justify-center min-h-0">
-
-            {/* Phase banner — compact */}
-            <div className="text-center mb-1">
-              {view.phase === 'chooseCharacters' && (
-                <div className="text-xs text-emerald-200 font-medium">
-                  {view.isMyTurnToChoose ? 'Choose your character' : 'Choosing characters...'}
-                </div>
-              )}
-              {view.phase === 'playerTurns' && calledCharacter && (
-                <div className="text-xs">
-                  <span className="text-emerald-600">Now: </span>
-                  <span className="font-bold text-amber-300">{calledCharacter.name}</span>
-                  <span className="text-emerald-600 text-[10px]"> #{calledCharacter.rank}</span>
-                </div>
-              )}
-              {view.phase === 'gameOver' && (
-                <div className="text-sm font-bold text-amber-400">Game Over</div>
-              )}
-            </div>
-
-            {/* Round events — compact single line */}
-            {view.phase === 'playerTurns' && view.roundEvents.length > 0 && (
-              <div className="mb-1">
-                <RoundEvents
-                  events={view.roundEvents}
-                  murderedCharacter={view.murderedCharacter}
-                  robbedCharacter={view.robbedCharacter}
-                  myCharacter={view.myCharacter}
-                />
-              </div>
-            )}
-
-            {/* Error */}
-            <AnimatePresence>
-              {actionError && (
-                <motion.div
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="bg-red-900/60 border border-red-700 rounded px-2 py-1 text-[10px] text-red-300 mb-1"
-                >
-                  {actionError}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Action controls */}
-            {isMyTurn && turnState && (
-              <div className="space-y-1">
-                <div className="text-center text-[10px] text-cyan-300 font-medium">
-                  {!turnState.actionTaken ? 'Your turn — choose an action'
-                    : turnState.phase === 'choosingCard' ? 'Pick a card to keep'
-                    : 'Build, use powers, or end turn'}
-                </div>
-
-                {!turnState.actionTaken && (
-                  <div className="flex gap-2 justify-center">
-                    <button onClick={() => onAction({ type: 'TAKE_GOLD' })}
-                      className="px-3 py-1 bg-yellow-700 hover:bg-yellow-600 rounded text-xs font-bold transition-colors text-yellow-100">
-                      &#9733; Gold
-                    </button>
-                    <button onClick={() => onAction({ type: 'DRAW_CARDS' })}
-                      className="px-3 py-1 bg-emerald-800 hover:bg-emerald-700 rounded text-xs font-bold transition-colors text-emerald-100">
-                      &#9830; Cards
-                    </button>
-                  </div>
-                )}
-
-                <div className="flex justify-center">
-                  <PowerActions view={view} onAction={onAction} />
-                </div>
-
-                {turnState.actionTaken && turnState.phase !== 'choosingCard' && (
-                  <div className="flex justify-center">
-                    <button onClick={() => onAction({ type: 'END_TURN' })}
-                      className="px-3 py-1 bg-slate-700/80 hover:bg-slate-600/80 rounded text-[10px] font-medium text-slate-300 transition-colors">
-                      End Turn &rarr;
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {view.phase === 'playerTurns' && !isMyTurn && (
-              <div className="flex-1 flex items-center justify-center">
-                <motion.div className="text-xs text-emerald-600" animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 2 }}>
-                  Waiting...
-                </motion.div>
-              </div>
-            )}
-            {view.phase === 'chooseCharacters' && !view.isMyTurnToChoose && (
-              <div className="flex-1 flex items-center justify-center">
-                <motion.div className="text-xs text-emerald-600" animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 2 }}>
-                  Choosing...
-                </motion.div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Hand tray — text pills */}
-        <div className="shrink-0 px-2 py-1" style={{ background: 'rgba(26,18,13,0.95)' }}>
-          <div className="flex items-center gap-1.5">
-            {/* My character icon */}
-            {view.myCharacter && (
-              <button
-                onClick={() => setDetailTarget({ type: 'character', character: view.myCharacter! })}
-                className="w-6 h-6 rounded-full overflow-hidden border border-cyan-500/50 shrink-0"
-              >
-                <img
-                  src={`/images/cards/characters/${view.myCharacter.name.toLowerCase()}.jpg`}
-                  alt={view.myCharacter.name}
-                  className="w-full h-full object-cover"
-                />
-              </button>
-            )}
-
-            <div className="w-px h-5 bg-amber-900/40 shrink-0" />
-
-            {/* Cards as pills */}
-            <div className="flex-1 flex gap-1 flex-wrap items-center">
-              {view.myHand.map((card, i) => {
-                const canBuild =
-                  isMyTurn &&
-                  turnState?.actionTaken &&
-                  (turnState?.districtsBuilt ?? 0) < (turnState?.maxDistricts ?? 1) &&
-                  card.cost <= (me?.gold ?? 0) &&
-                  !me?.city.some(d => d.name === card.name);
-
-                const pillBg = PILL_BG[card.type] || PILL_BG.special;
-                const pillText = PILL_TEXT[card.type] || PILL_TEXT.special;
-
-                return (
-                  <button
-                    key={card.id}
-                    onClick={canBuild
-                      ? () => onAction({ type: 'BUILD_DISTRICT', cardIndex: i })
-                      : () => setDetailTarget({ type: 'district', card })
-                    }
-                    className={`
-                      shrink-0 flex items-center gap-0.5 px-1 py-px rounded border text-[9px]
-                      ${pillBg} ${pillText}
-                      ${canBuild ? 'ring-1 ring-cyan-400/70' : ''}
-                    `}
-                  >
-                    <span className="w-3 h-3 bg-yellow-400 text-black rounded-full text-[7px] font-bold flex items-center justify-center shrink-0">
-                      {card.cost}
-                    </span>
-                    <span className="truncate max-w-[52px]">{card.name}</span>
-                    {canBuild && <span className="text-cyan-300 text-[7px]">&#9650;</span>}
-                  </button>
-                );
-              })}
-              {view.myHand.length === 0 && (
-                <span className="text-slate-600 text-[9px] italic">No cards</span>
-              )}
-            </div>
-
-            {/* City dots */}
-            {me && me.city.length > 0 && (
-              <>
-                <div className="w-px h-5 bg-amber-900/40 shrink-0" />
-                <div className="shrink-0 flex items-center gap-0.5">
-                  {me.city.map(d => {
-                    const col = { noble: 'bg-yellow-500', religious: 'bg-blue-500', trade: 'bg-green-500', military: 'bg-red-500', special: 'bg-purple-500' }[d.type];
-                    return (
-                      <button key={d.id} onClick={() => setDetailTarget({ type: 'district', card: d })}
-                        className={`w-2.5 h-3 rounded-[1px] ${col} opacity-80 hover:opacity-100 border border-white/10`}
-                        title={d.name} />
-                    );
-                  })}
-                  <span className="text-[8px] text-slate-500 ml-0.5">{me.city.length}/8</span>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* ═══ DESKTOP LAYOUT (>= md) ═══                        */}
-      {/* ═══════════════════════════════════════════════════════ */}
-      <div className="hidden md:flex flex-1 flex-row overflow-hidden min-h-0">
-
-        {/* Left column */}
-        <div className="w-52 lg:w-60 shrink-0 p-2 space-y-1.5 overflow-y-auto">
+        {/* Wide: Left column */}
+        <div className="hidden md:block w-52 lg:w-60 shrink-0 p-2 space-y-1.5 overflow-y-auto">
           {otherPlayers.filter((_, i) => i < Math.ceil(otherPlayers.length / 2)).map((p) => {
             const idx = view.players.findIndex(pl => pl.id === p.id);
             const charRank = p.revealedCharacter?.rank;
@@ -357,7 +149,7 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
 
         {/* Center: felt table */}
         <div className="flex-1 flex flex-col min-w-0 p-2">
-          <div className="felt-surface flex-1 rounded-xl p-3 lg:p-4 flex flex-col min-h-0 overflow-y-auto">
+          <div className="felt-surface flex-1 rounded-xl p-3 lg:p-4 flex flex-col min-h-[200px]">
 
             {/* Phase banner */}
             <div className="text-center mb-2">
@@ -453,14 +245,14 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
             )}
 
             {view.phase === 'playerTurns' && !isMyTurn && (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center min-h-[60px]">
                 <motion.div className="text-sm text-emerald-600" animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 2 }}>
                   Waiting...
                 </motion.div>
               </div>
             )}
             {view.phase === 'chooseCharacters' && !view.isMyTurnToChoose && (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center min-h-[60px]">
                 <motion.div className="text-sm text-emerald-600" animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 2 }}>
                   Choosing...
                 </motion.div>
@@ -474,8 +266,8 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
           </div>
         </div>
 
-        {/* Right column */}
-        <div className="w-52 lg:w-60 shrink-0 p-2 space-y-1.5 overflow-y-auto">
+        {/* Wide: Right column */}
+        <div className="hidden md:block w-52 lg:w-60 shrink-0 p-2 space-y-1.5 overflow-y-auto">
           {otherPlayers.filter((_, i) => i >= Math.ceil(otherPlayers.length / 2)).map((p) => {
             const idx = view.players.findIndex(pl => pl.id === p.id);
             const charRank = p.revealedCharacter?.rank;
@@ -497,11 +289,11 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
         </div>
       </div>
 
-      {/* Desktop: Hand tray */}
-      <div className="hidden md:block hand-tray shrink-0 px-3 py-2">
-        <div className="flex items-center gap-4 max-w-5xl mx-auto">
-          {/* My info compact */}
-          <div className="shrink-0 flex items-center gap-2">
+      {/* ═══ HAND TRAY ═══ */}
+      <div className="hand-tray shrink-0 px-3 py-2">
+        <div className="max-w-5xl mx-auto">
+          {/* Top row: my info + city */}
+          <div className="flex items-center gap-3 mb-2">
             {view.myCharacter && (
               <button
                 onClick={() => setDetailTarget({ type: 'character', character: view.myCharacter! })}
@@ -515,12 +307,21 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
               </button>
             )}
             <GoldDisplay amount={me?.gold ?? 0} size="sm" />
+
+            {me && me.city.length > 0 && (
+              <MyCityDisplay
+                city={me.city}
+                onDistrictClick={(d) => setDetailTarget({ type: 'district', card: d })}
+              />
+            )}
+
+            {isMyTurn && turnState?.actionTaken && (turnState?.districtsBuilt ?? 0) < (turnState?.maxDistricts ?? 1) && (
+              <span className="text-[10px] text-cyan-400 animate-pulse shrink-0 ml-auto">Tap card to build</span>
+            )}
           </div>
 
-          <div className="w-px h-10 bg-amber-900/40" />
-
-          {/* Cards */}
-          <div className="flex-1 flex gap-1.5 overflow-x-auto items-end pb-0.5">
+          {/* Cards row: wraps on narrow screens */}
+          <div className="flex flex-wrap gap-1.5 items-end">
             <AnimatePresence>
               {view.myHand.map((card, i) => {
                 const canBuild =
@@ -553,37 +354,6 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
               <div className="text-slate-600 text-xs italic py-2">No cards</div>
             )}
           </div>
-
-          {/* My city */}
-          {me && me.city.length > 0 && (
-            <>
-              <div className="w-px h-10 bg-amber-900/40 shrink-0" />
-              <div className="shrink-0">
-                <div className="hidden lg:flex flex-wrap gap-1 max-w-[280px]">
-                  {me.city.map(d => (
-                    <DistrictCardView key={d.id} card={d} small disabled
-                      onDetail={() => setDetailTarget({ type: 'district', card: d })} />
-                  ))}
-                </div>
-                <div className="lg:hidden flex items-center gap-0.5">
-                  {me.city.map(d => {
-                    const col = { noble: 'bg-yellow-500', religious: 'bg-blue-500', trade: 'bg-green-500', military: 'bg-red-500', special: 'bg-purple-500' }[d.type];
-                    return (
-                      <button key={d.id} onClick={() => setDetailTarget({ type: 'district', card: d })}
-                        className={`w-3.5 h-4 rounded-[2px] ${col} opacity-80 hover:opacity-100 border border-white/10`}
-                        title={d.name} />
-                    );
-                  })}
-                </div>
-                <div className="text-[9px] text-slate-500 text-center mt-0.5">{me.city.length}/8</div>
-              </div>
-            </>
-          )}
-
-          {/* Build hint */}
-          {isMyTurn && turnState?.actionTaken && (turnState?.districtsBuilt ?? 0) < (turnState?.maxDistricts ?? 1) && (
-            <span className="text-[10px] text-cyan-400 animate-pulse shrink-0">Tap card to build</span>
-          )}
         </div>
       </div>
     </div>
@@ -591,6 +361,41 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
 }
 
 // ── Sub-overlays ────────────────────────────────────────────────
+
+function MyCityDisplay({ city, onDistrictClick }: { city: BuiltDistrict[]; onDistrictClick: (d: BuiltDistrict) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <>
+      <div className="w-px h-10 bg-amber-900/40 shrink-0" />
+      <div className="shrink-0">
+        {/* Dots row — tap to toggle expanded */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-0.5 lg:hidden"
+        >
+          {city.map(d => {
+            const col = { noble: 'bg-yellow-500', religious: 'bg-blue-500', trade: 'bg-green-500', military: 'bg-red-500', special: 'bg-purple-500' }[d.type] || 'bg-slate-500';
+            return <div key={d.id} className={`w-3.5 h-4 rounded-[2px] ${col} opacity-80 border border-white/10`} />;
+          })}
+          <span className="text-[9px] text-slate-500 ml-1">{city.length}/8</span>
+          <span className="text-[9px] text-slate-600 ml-0.5">{expanded ? '\u25B2' : '\u25BC'}</span>
+        </button>
+
+        {/* Mini cards — always on lg, toggled on mobile */}
+        <div className={`${expanded ? 'block' : 'hidden'} lg:block mt-1`}>
+          <div className="flex flex-wrap gap-1 max-w-[280px]">
+            {city.map(d => (
+              <DistrictCardView key={d.id} card={d} small disabled
+                onDetail={() => onDistrictClick(d)} />
+            ))}
+          </div>
+        </div>
+
+        <div className="hidden lg:block text-[9px] text-slate-500 text-center mt-0.5">{city.length}/8</div>
+      </div>
+    </>
+  );
+}
 
 function CardChoiceOverlay({ cards, myHand, onChoose, onDetail }: { cards: DistrictCard[]; myHand: DistrictCard[]; onChoose: (i: number) => void; onDetail: (card: DistrictCard) => void }) {
   return (

@@ -64,22 +64,4 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #5c3d2e; border-radius: 2px; }
 
-/* Lock to landscape hint on portrait mobile */
-@media (max-width: 767px) and (orientation: portrait) {
-  body::after {
-    content: 'Rotate your device to landscape for the best experience';
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: #1a120d;
-    color: #d4a574;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-size: 1.1rem;
-    padding: 2rem;
-    font-family: system-ui;
-  }
-}
 

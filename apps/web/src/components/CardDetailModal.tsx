@@ -69,10 +69,10 @@ export function DistrictDetailModal({ card, onClose }: DistrictDetailProps) {
         exit={{ scale: 0.8, opacity: 0, y: 20 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-72 rounded-2xl border-2 bg-gradient-to-b overflow-hidden shadow-2xl ${colors.border} ${colors.bg} ${colors.glow}`}
+        className={`relative w-72 max-h-[85dvh] overflow-y-auto rounded-2xl border-2 bg-gradient-to-b shadow-2xl ${colors.border} ${colors.bg} ${colors.glow}`}
       >
         {/* Card image */}
-        <div className="relative h-64 overflow-hidden">
+        <div className="relative h-48 sm:h-64 overflow-hidden">
           {!imgError ? (
             <img
               src={getDistrictImagePath(card.name)}
@@ -151,10 +151,10 @@ export function CharacterDetailModal({ character, onClose }: CharacterDetailProp
         exit={{ scale: 0.8, opacity: 0, y: 20 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-72 rounded-2xl border-2 bg-gradient-to-b overflow-hidden shadow-2xl ${colors.border} ${colors.bg} ${colors.glow}`}
+        className={`relative w-72 max-h-[85dvh] overflow-y-auto rounded-2xl border-2 bg-gradient-to-b shadow-2xl ${colors.border} ${colors.bg} ${colors.glow}`}
       >
         {/* Character image */}
-        <div className="relative h-72 overflow-hidden">
+        <div className="relative h-48 sm:h-72 overflow-hidden">
           {!imgError ? (
             <img
               src={getCharacterImagePath(character.name)}
