@@ -14,6 +14,12 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
   const char = view.myCharacter;
   if (!char || !view.isMyTurn || !view.turnState) return null;
 
+  const myCity = view.players[view.myIndex]?.city ?? [];
+  const specialUsed = (view.turnState as any).specialBuildingsUsed as string[] ?? [];
+  const hasLaboratory = myCity.some(d => d.name === 'Laboratory');
+  const hasSmithy = myCity.some(d => d.name === 'Smithy');
+  const myGold = view.players[view.myIndex]?.gold ?? 0;
+
   return (
     <div className="flex flex-wrap gap-2">
       {char.name === 'Assassin' && !view.turnState.powerUsed && (
@@ -35,6 +41,18 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
       )}
       {char.name === 'Warlord' && !view.turnState.powerUsed && view.turnState.actionTaken && (
         <WarlordAction view={view} onAction={onAction} />
+      )}
+      {hasLaboratory && !specialUsed.includes('Laboratory') && view.myHand.length > 0 && (
+        <LaboratoryAction view={view} onAction={onAction} />
+      )}
+      {hasSmithy && !specialUsed.includes('Smithy') && myGold >= 2 && (
+        <button
+          onClick={() => onAction({ type: 'SMITHY_DRAW' })}
+          className="px-3 py-1.5 bg-orange-700 hover:bg-orange-600 rounded text-sm font-medium transition-colors"
+          title="Pay 2 gold to draw 3 district cards"
+        >
+          Smithy (pay 2g, draw 3)
+        </button>
       )}
     </div>
   );
@@ -161,6 +179,45 @@ function MagicianAction({ view, onAction }: { view: PlayerGameView; onAction: (a
       )}
       <button
         onClick={() => setShowOptions(false)}
+        className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs transition-colors"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function LaboratoryAction({ view, onAction }: { view: PlayerGameView; onAction: (a: any) => void }) {
+  const [showPicker, setShowPicker] = useState(false);
+
+  if (!showPicker) {
+    return (
+      <button
+        onClick={() => setShowPicker(true)}
+        className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 rounded text-sm font-medium transition-colors"
+        title="Discard a card to gain 2 gold"
+      >
+        Laboratory (discard for 2g)
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-2 bg-slate-800 rounded p-3 border border-slate-600">
+      <p className="text-xs text-slate-400">Discard a card to gain 2 gold:</p>
+      <div className="flex flex-wrap gap-1">
+        {view.myHand.map((card, i) => (
+          <button
+            key={i}
+            onClick={() => { onAction({ type: 'LABORATORY_DISCARD', cardIndex: i }); setShowPicker(false); }}
+            className="px-2 py-1 bg-teal-700 hover:bg-teal-600 rounded text-xs transition-colors"
+          >
+            {card.name} ({card.cost}g)
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={() => setShowPicker(false)}
         className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs transition-colors"
       >
         Cancel

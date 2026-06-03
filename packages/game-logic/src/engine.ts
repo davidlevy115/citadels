@@ -285,6 +285,7 @@ function advanceToNextCharacter(state: GameState): GameState {
         maxDistricts: player.characterCard!.name === 'Architect' ? 3 : 1,
         drawnCards: [],
         merchantBonusTaken: false,
+        specialBuildingsUsed: [],
       };
 
       return state;
@@ -564,6 +565,53 @@ function handleWarlordDestroy(
   return state;
 }
 
+function handleLaboratoryDiscard(state: GameState, playerId: string, cardIndex: number): GameState {
+  const playerIndex = state.players.findIndex(p => p.id === playerId);
+  if (playerIndex === -1) throw new Error('Player not found.');
+  if (!state.turnState) throw new Error('No active turn.');
+  if (state.players[playerIndex].characterCard?.rank !== state.currentCharacterRank) throw new Error('Not your turn.');
+  if (state.turnState.specialBuildingsUsed.includes('Laboratory')) throw new Error('Laboratory already used this turn.');
+
+  const player = state.players[playerIndex];
+  if (!player.city.some(d => d.name === 'Laboratory')) throw new Error('You do not have Laboratory built.');
+  if (player.hand.length === 0) throw new Error('No cards to discard.');
+  if (cardIndex < 0 || cardIndex >= player.hand.length) throw new Error('Invalid card index.');
+
+  const discarded = player.hand[cardIndex];
+  const newHand = [...player.hand];
+  newHand.splice(cardIndex, 1);
+  state.districtDiscard.push(discarded);
+
+  state.players[playerIndex] = { ...player, gold: player.gold + 2, hand: newHand };
+  state.turnState.specialBuildingsUsed.push('Laboratory');
+  addLog(state, `${player.name} uses Laboratory: discards ${discarded.name} for 2 gold.`);
+
+  return state;
+}
+
+function handleSmithyDraw(state: GameState, playerId: string): GameState {
+  const playerIndex = state.players.findIndex(p => p.id === playerId);
+  if (playerIndex === -1) throw new Error('Player not found.');
+  if (!state.turnState) throw new Error('No active turn.');
+  if (state.players[playerIndex].characterCard?.rank !== state.currentCharacterRank) throw new Error('Not your turn.');
+  if (state.turnState.specialBuildingsUsed.includes('Smithy')) throw new Error('Smithy already used this turn.');
+
+  const player = state.players[playerIndex];
+  if (!player.city.some(d => d.name === 'Smithy')) throw new Error('You do not have Smithy built.');
+  if (player.gold < 2) throw new Error('Need at least 2 gold to use Smithy.');
+
+  const drawn: typeof state.districtDeck = [];
+  for (let i = 0; i < 3; i++) {
+    if (state.districtDeck.length > 0) drawn.push(state.districtDeck.shift()!);
+  }
+
+  state.players[playerIndex] = { ...player, gold: player.gold - 2, hand: [...player.hand, ...drawn] };
+  state.turnState.specialBuildingsUsed.push('Smithy');
+  addLog(state, `${player.name} uses Smithy: pays 2 gold, draws ${drawn.length} cards.`);
+
+  return state;
+}
+
 function handleCollectIncome(state: GameState, playerId: string): GameState {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
   if (playerIndex === -1) throw new Error('Player not found.');
@@ -710,6 +758,14 @@ export function processAction(state: GameState, action: GameAction): GameState {
       // Warlord chooses not to destroy — just mark power as used
       state.turnState!.powerUsed = true;
       return state;
+
+    case 'LABORATORY_DISCARD':
+      if (state.phase !== 'playerTurns') throw new Error('Not in player turns phase.');
+      return handleLaboratoryDiscard(state, action.playerId, action.cardIndex);
+
+    case 'SMITHY_DRAW':
+      if (state.phase !== 'playerTurns') throw new Error('Not in player turns phase.');
+      return handleSmithyDraw(state, action.playerId);
 
     default:
       throw new Error(`Unknown action type: ${(action as any).type}`);

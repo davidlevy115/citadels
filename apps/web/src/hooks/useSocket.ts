@@ -40,6 +40,21 @@ export function useSocket() {
 
     socket.connect();
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (!socket.connected) {
+          socket.connect();
+        }
+        // Re-request game state in case we missed updates while away
+        const currentRoomId = roomId;
+        const currentPlayerId = playerId;
+        if (currentRoomId && currentPlayerId) {
+          socket.emit('rejoinRoom', { roomId: currentRoomId, playerId: currentPlayerId });
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       socket.off('roomJoined');
       socket.off('gameState');
@@ -47,8 +62,9 @@ export function useSocket() {
       socket.off('error');
       socket.off('actionError');
       socket.off('savedGames');
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [setRoom, setGameView, setLobbyState, setError, setActionError, setSavedGames]);
+  }, [setRoom, setGameView, setLobbyState, setError, setActionError, setSavedGames, roomId, playerId]);
 
   const createGame = useCallback((playerName: string, botCount: number) => {
     socketRef.current?.emit('createGame', { playerName, botCount });

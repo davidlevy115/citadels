@@ -320,16 +320,41 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     socket.emit('savedGames', saves);
   });
 
-  // Disconnect handling
+  // Rejoin room (reconnect after mobile background)
+  socket.on('rejoinRoom', (data: { roomId: string; playerId: string }) => {
+    const room = rooms.get(data.roomId);
+    if (!room) return;
+
+    const rp = room.players.find(p => p.playerId === data.playerId);
+    if (rp) {
+      // Update socket ID and rejoin socket.io room
+      rp.socketId = socket.id;
+      socket.join(data.roomId);
+      // Resend current game state
+      if (room.state) {
+        const view = getPlayerView(room.state, rp.playerId);
+        socket.emit('gameState', view);
+      } else if (room.waitingForPlayers) {
+        const lobbyInfo = {
+          roomId: room.id,
+          joined: room.players.map(p => p.name),
+          totalHumansNeeded: room.totalHumansNeeded,
+          waiting: true,
+        };
+        socket.emit('lobbyState', lobbyInfo);
+      }
+    }
+  });
+
+  // Disconnect handling — keep player in room for reconnect, only clean up if empty
   socket.on('disconnect', () => {
     for (const [roomId, room] of rooms.entries()) {
-      const idx = room.players.findIndex(p => p.socketId === socket.id);
-      if (idx !== -1) {
-        room.players.splice(idx, 1);
-        if (room.players.length === 0) {
+      const rp = room.players.find(p => p.socketId === socket.id);
+      if (rp) {
+        // Don't remove player — they may reconnect (especially on mobile)
+        // Only clean up empty single-player rooms with no state after a delay
+        if (room.isSinglePlayer && !room.state) {
           rooms.delete(roomId);
-        } else {
-          broadcastState(io, room);
         }
       }
     }

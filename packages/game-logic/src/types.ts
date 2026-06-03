@@ -78,7 +78,9 @@ export type GameAction =
   | { type: 'MAGICIAN_SWAP_PLAYER'; playerId: string; targetPlayerId: string }
   | { type: 'MAGICIAN_SWAP_DECK'; playerId: string; cardIndices: number[] }
   | { type: 'WARLORD_DESTROY'; playerId: string; targetPlayerId: string; districtIndex: number }
-  | { type: 'WARLORD_PASS'; playerId: string };
+  | { type: 'WARLORD_PASS'; playerId: string }
+  | { type: 'LABORATORY_DISCARD'; playerId: string; cardIndex: number }
+  | { type: 'SMITHY_DRAW'; playerId: string };
 
 // ── Turn state ──────────────────────────────────────────────────
 
@@ -92,6 +94,7 @@ export interface TurnState {
   maxDistricts: number;
   drawnCards: DistrictCard[];  // cards drawn for choosing
   merchantBonusTaken: boolean;
+  specialBuildingsUsed: string[];  // names of special buildings used this turn
 }
 
 // ── Game state ──────────────────────────────────────────────────

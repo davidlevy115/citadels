@@ -295,6 +295,7 @@ describe('Character powers', () => {
       maxDistricts: player0Rank === 7 ? 3 : 1,
       drawnCards: [],
       merchantBonusTaken: false,
+      specialBuildingsUsed: [],
     };
 
     return state;
@@ -738,6 +739,7 @@ describe('Game end', () => {
       maxDistricts: 1,
       drawnCards: [],
       merchantBonusTaken: false,
+      specialBuildingsUsed: [],
     };
 
     state = processAction(state, { type: 'TAKE_GOLD', playerId: state.players[0].id });

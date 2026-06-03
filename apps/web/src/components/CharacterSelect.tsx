@@ -46,7 +46,21 @@ export function CharacterSelect({ characters, removedFaceUp, players, myIndex, c
                 <span className="text-yellow-400 tabular-nums">{p.gold}g</span>
                 <span className="text-slate-400 tabular-nums">{p.handSize}c</span>
                 {p.city.length > 0 && (
-                  <span className="text-emerald-400 tabular-nums">{p.city.length}d</span>
+                  <div className="flex flex-wrap gap-0.5 max-w-[60px]">
+                    {p.city.map((d, idx) => (
+                      <div
+                        key={idx}
+                        title={`${d.name} (${d.type})`}
+                        className={`w-2 h-2 rounded-full ${
+                          d.type === 'noble' ? 'bg-yellow-500' :
+                          d.type === 'religious' ? 'bg-blue-500' :
+                          d.type === 'trade' ? 'bg-green-500' :
+                          d.type === 'military' ? 'bg-red-500' :
+                          'bg-purple-500'
+                        }`}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             );
