@@ -61,6 +61,10 @@ function processBotTurns(io: Server, room: GameRoom): void {
     if (state.phase === 'chooseCharacters') {
       const chooser = state.players[state.choosingPlayerIndex];
       if (chooser?.isBot) botPlayer = chooser;
+    } else if (state.phase === 'playerTurns' && state.pendingGraveyard) {
+      // Graveyard decision blocks the turn — it's the owner who must act
+      const owner = state.players.find(p => p.id === state.pendingGraveyard!.playerId);
+      if (owner?.isBot) botPlayer = owner;
     } else if (state.phase === 'playerTurns' && state.turnState) {
       const active = state.players.find(p => p.characterCard?.rank === state.currentCharacterRank);
       if (active?.isBot) botPlayer = active;

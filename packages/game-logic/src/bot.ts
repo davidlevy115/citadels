@@ -7,6 +7,16 @@ export function getBotAction(state: GameState, botPlayerId: string): GameAction 
   const player = state.players.find(p => p.id === botPlayerId);
   if (!player) return null;
 
+  // Graveyard decision (recover destroyed district for 1 gold?)
+  if (actions.canGraveyardDecide && state.pendingGraveyard) {
+    const card = state.pendingGraveyard.card;
+    const worthIt =
+      player.gold >= 1 &&
+      !player.city.some(d => d.name === card.name) &&
+      (card.cost >= 2 || player.hand.length <= 1);
+    return { type: worthIt ? 'GRAVEYARD_RECOVER' : 'GRAVEYARD_PASS', playerId: botPlayerId };
+  }
+
   // Character choosing phase
   if (actions.canChooseCharacter && actions.availableCharacters.length > 0) {
     const rank = chooseBotCharacter(state, player, actions.availableCharacters);

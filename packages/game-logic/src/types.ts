@@ -80,7 +80,9 @@ export type GameAction =
   | { type: 'WARLORD_DESTROY'; playerId: string; targetPlayerId: string; districtIndex: number }
   | { type: 'WARLORD_PASS'; playerId: string }
   | { type: 'LABORATORY_DISCARD'; playerId: string; cardIndex: number }
-  | { type: 'SMITHY_DRAW'; playerId: string };
+  | { type: 'SMITHY_DRAW'; playerId: string }
+  | { type: 'GRAVEYARD_RECOVER'; playerId: string }
+  | { type: 'GRAVEYARD_PASS'; playerId: string };
 
 // ── Turn state ──────────────────────────────────────────────────
 
@@ -121,6 +123,9 @@ export interface GameState {
   turnState: TurnState | null;
   murderedCharacter: number | null;  // rank of murdered character
   robbedCharacter: number | null;    // rank of robbed character
+
+  // Graveyard: a destroyed district awaiting the owner's recover/pass decision
+  pendingGraveyard: { playerId: string; card: DistrictCard } | null;
 
   // Crown
   crownPlayerIndex: number;
@@ -179,6 +184,7 @@ export interface PlayerGameView {
   currentCharacterRank: number;
   turnState: TurnState | null;
   isMyTurn: boolean;
+  pendingGraveyard: { playerId: string; card: DistrictCard } | null;
 
   // Game state
   crownPlayerIndex: number;

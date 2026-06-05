@@ -591,6 +591,162 @@ describe('Character powers', () => {
       expect(state.players[1].city).toHaveLength(0);
     });
   });
+
+  describe('Graveyard', () => {
+    function setupGraveyardDestroy(graveyardOwnerIdx: number): GameState {
+      let state = setupWithCharacters({ 0: 8, 1: 4, 2: 5, 3: 6 });
+      state.players[0] = { ...state.players[0], gold: 20 };
+      state.players[1] = {
+        ...state.players[1],
+        city: [{ id: 'test1', name: 'Tavern', cost: 1, type: 'trade' }],
+      };
+      state.players[graveyardOwnerIdx] = {
+        ...state.players[graveyardOwnerIdx],
+        gold: Math.max(state.players[graveyardOwnerIdx].gold, 3),
+        city: [
+          ...state.players[graveyardOwnerIdx].city,
+          { id: 'gy1', name: 'Graveyard', cost: 5, type: 'special' },
+        ],
+      };
+      state = processAction(state, { type: 'TAKE_GOLD', playerId: state.players[0].id });
+      return processAction(state, {
+        type: 'WARLORD_DESTROY',
+        playerId: state.players[0].id,
+        targetPlayerId: state.players[1].id,
+        districtIndex: 0,
+      });
+    }
+
+    it('offers the destroyed district to the Graveyard owner', () => {
+      const state = setupGraveyardDestroy(2);
+      expect(state.pendingGraveyard).not.toBeNull();
+      expect(state.pendingGraveyard?.playerId).toBe(state.players[2].id);
+      expect(state.pendingGraveyard?.card.name).toBe('Tavern');
+    });
+
+    it('blocks other actions while decision is pending', () => {
+      const state = setupGraveyardDestroy(2);
+      expect(() => {
+        processAction(state, { type: 'END_TURN', playerId: state.players[0].id });
+      }).toThrow('Graveyard');
+    });
+
+    it('owner pays 1 gold to recover the district', () => {
+      let state = setupGraveyardDestroy(2);
+      const goldBefore = state.players[2].gold;
+      const handBefore = state.players[2].hand.length;
+
+      state = processAction(state, { type: 'GRAVEYARD_RECOVER', playerId: state.players[2].id });
+
+      expect(state.pendingGraveyard).toBeNull();
+      expect(state.players[2].gold).toBe(goldBefore - 1);
+      expect(state.players[2].hand).toHaveLength(handBefore + 1);
+      expect(state.players[2].hand.some(c => c.name === 'Tavern')).toBe(true);
+    });
+
+    it('owner may decline — card goes to the discard', () => {
+      let state = setupGraveyardDestroy(2);
+      const goldBefore = state.players[2].gold;
+
+      state = processAction(state, { type: 'GRAVEYARD_PASS', playerId: state.players[2].id });
+
+      expect(state.pendingGraveyard).toBeNull();
+      expect(state.players[2].gold).toBe(goldBefore);
+      expect(state.districtDiscard.some(c => c.name === 'Tavern')).toBe(true);
+    });
+
+    it('another player cannot answer the decision', () => {
+      const state = setupGraveyardDestroy(2);
+      expect(() => {
+        processAction(state, { type: 'GRAVEYARD_RECOVER', playerId: state.players[3].id });
+      }).toThrow('Not your Graveyard decision');
+    });
+
+    it('the targeted player CAN use their own Graveyard', () => {
+      const state = setupGraveyardDestroy(1);
+      expect(state.pendingGraveyard?.playerId).toBe(state.players[1].id);
+    });
+
+    it('the Warlord cannot use their own Graveyard', () => {
+      let state = setupWithCharacters({ 0: 8, 1: 4, 2: 5, 3: 6 });
+      state.players[0] = {
+        ...state.players[0],
+        gold: 20,
+        city: [{ id: 'gy1', name: 'Graveyard', cost: 5, type: 'special' }],
+      };
+      state.players[1] = {
+        ...state.players[1],
+        city: [{ id: 'test1', name: 'Tavern', cost: 1, type: 'trade' }],
+      };
+      state = processAction(state, { type: 'TAKE_GOLD', playerId: state.players[0].id });
+      state = processAction(state, {
+        type: 'WARLORD_DESTROY',
+        playerId: state.players[0].id,
+        targetPlayerId: state.players[1].id,
+        districtIndex: 0,
+      });
+
+      expect(state.pendingGraveyard).toBeNull();
+      expect(state.districtDiscard.some(c => c.name === 'Tavern')).toBe(true);
+    });
+
+    it('destroying the Graveyard itself offers no recovery', () => {
+      let state = setupWithCharacters({ 0: 8, 1: 4, 2: 5, 3: 6 });
+      state.players[0] = { ...state.players[0], gold: 20 };
+      state.players[1] = {
+        ...state.players[1],
+        gold: 5,
+        city: [{ id: 'gy1', name: 'Graveyard', cost: 5, type: 'special' }],
+      };
+      state = processAction(state, { type: 'TAKE_GOLD', playerId: state.players[0].id });
+      state = processAction(state, {
+        type: 'WARLORD_DESTROY',
+        playerId: state.players[0].id,
+        targetPlayerId: state.players[1].id,
+        districtIndex: 0,
+      });
+
+      expect(state.pendingGraveyard).toBeNull();
+    });
+
+    it('no offer when owner has no gold', () => {
+      let state = setupWithCharacters({ 0: 8, 1: 4, 2: 5, 3: 6 });
+      state.players[0] = { ...state.players[0], gold: 20 };
+      state.players[1] = {
+        ...state.players[1],
+        city: [{ id: 'test1', name: 'Tavern', cost: 1, type: 'trade' }],
+      };
+      state.players[2] = {
+        ...state.players[2],
+        gold: 0,
+        city: [{ id: 'gy1', name: 'Graveyard', cost: 5, type: 'special' }],
+      };
+      state = processAction(state, { type: 'TAKE_GOLD', playerId: state.players[0].id });
+      state = processAction(state, {
+        type: 'WARLORD_DESTROY',
+        playerId: state.players[0].id,
+        targetPlayerId: state.players[1].id,
+        districtIndex: 0,
+      });
+
+      expect(state.pendingGraveyard).toBeNull();
+    });
+
+    it('getAvailableActions exposes the decision only to the owner', () => {
+      const state = setupGraveyardDestroy(2);
+      expect(getAvailableActions(state, state.players[2].id).canGraveyardDecide).toBe(true);
+      expect(getAvailableActions(state, state.players[0].id).canGraveyardDecide).toBe(false);
+      // Warlord's regular actions are blocked while pending
+      expect(getAvailableActions(state, state.players[0].id).canEndTurn).toBe(false);
+    });
+
+    it('bot resolves the pending decision', () => {
+      const state = setupGraveyardDestroy(2);
+      const action = getBotAction(state, state.players[2].id);
+      expect(action).not.toBeNull();
+      expect(['GRAVEYARD_RECOVER', 'GRAVEYARD_PASS']).toContain(action!.type);
+    });
+  });
 });
 
 describe('Scoring', () => {

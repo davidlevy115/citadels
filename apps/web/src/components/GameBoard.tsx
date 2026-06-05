@@ -31,6 +31,7 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
   const turnState = view.turnState;
   const isMyTurn = view.isMyTurn;
   const [detailTarget, setDetailTarget] = useState<DetailTarget>(null);
+  const isMyGraveyardDecision = view.pendingGraveyard?.playerId === me?.id;
 
   const calledCharacter = CHARACTERS.find(c => c.rank === view.currentCharacterRank);
   const otherPlayers = view.players.filter((_, i) => i !== view.myIndex);
@@ -54,6 +55,15 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
           cards={turnState.drawnCards}
           myHand={view.myHand}
           onChoose={(idx) => onAction({ type: 'KEEP_CARD', cardIndex: idx })}
+          onDetail={(card) => setDetailTarget({ type: 'district', card })}
+        />
+      )}
+      {view.pendingGraveyard && isMyGraveyardDecision && (
+        <GraveyardOverlay
+          card={view.pendingGraveyard.card}
+          gold={me?.gold ?? 0}
+          onRecover={() => onAction({ type: 'GRAVEYARD_RECOVER' })}
+          onPass={() => onAction({ type: 'GRAVEYARD_PASS' })}
           onDetail={(card) => setDetailTarget({ type: 'district', card })}
         />
       )}
@@ -207,8 +217,15 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
               )}
             </AnimatePresence>
 
+            {/* Graveyard wait notice */}
+            {view.pendingGraveyard && !isMyGraveyardDecision && (
+              <div className="text-center text-[11px] text-purple-300 animate-pulse mb-2">
+                Waiting for Graveyard decision...
+              </div>
+            )}
+
             {/* Action controls */}
-            {isMyTurn && turnState && (
+            {isMyTurn && turnState && !view.pendingGraveyard && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
                 <div className="text-center text-[11px] text-cyan-300 font-medium">
                   {!turnState.actionTaken ? 'Your turn — choose an action'
@@ -429,6 +446,44 @@ function CardChoiceOverlay({ cards, myHand, onChoose, onDetail }: { cards: Distr
             </div>
           </div>
         )}
+      </div>
+    </motion.div>
+  );
+}
+
+function GraveyardOverlay({ card, gold, onRecover, onPass, onDetail }: {
+  card: DistrictCard;
+  gold: number;
+  onRecover: () => void;
+  onPass: () => void;
+  onDetail: (card: DistrictCard) => void;
+}) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-800 rounded-xl p-5 border border-purple-600/60 max-w-sm w-full mx-4">
+        <h2 className="text-base font-bold text-center mb-1 text-purple-300">Graveyard</h2>
+        <p className="text-xs text-slate-400 text-center mb-4">
+          {card.name} was destroyed. Pay 1 gold to take it into your hand?
+        </p>
+        <div className="flex justify-center mb-4">
+          <DistrictCardView card={card} onDetail={() => onDetail(card)} />
+        </div>
+        <div className="flex gap-2 justify-center">
+          <button
+            onClick={onRecover}
+            disabled={gold < 1}
+            className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-xs font-bold text-white transition-colors shadow-lg"
+          >
+            Recover (1 gold)
+          </button>
+          <button
+            onClick={onPass}
+            className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs font-bold text-slate-200 transition-colors"
+          >
+            Decline
+          </button>
+        </div>
       </div>
     </motion.div>
   );

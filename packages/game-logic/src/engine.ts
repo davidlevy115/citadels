@@ -69,6 +69,7 @@ export function createGame(config: GameConfig): GameState {
     turnState: null,
     murderedCharacter: null,
     robbedCharacter: null,
+    pendingGraveyard: null,
 
     crownPlayerIndex: 0, // first player gets crown
     firstToEightDistricts: null,
@@ -546,21 +547,46 @@ function handleWarlordDestroy(
   state.turnState!.powerUsed = true;
   addLog(state, `${state.players[playerIndex].name} (Warlord) destroys ${removed.name} in ${targetPlayer.name}'s city (paid ${cost} gold).`);
 
-  // Graveyard: owner can pay 1 gold to recover destroyed district
+  // Graveyard: owner may pay 1 gold to recover the destroyed district
+  // (not allowed if the owner is the Warlord, or if the Graveyard itself was destroyed)
   const graveyardOwner = state.players.find(
-    p => p.city.some(d => d.name === 'Graveyard') && p.id !== targetPlayerId
+    p => p.city.some(d => d.name === 'Graveyard') && p.id !== playerId
   );
-  if (graveyardOwner && removed.name !== 'Graveyard') {
-    if (graveyardOwner.gold >= 1) {
-      const gIdx = state.players.findIndex(p => p.id === graveyardOwner.id);
-      state.players[gIdx] = {
-        ...graveyardOwner,
-        gold: graveyardOwner.gold - 1,
-        hand: [...graveyardOwner.hand, removed],
-      };
-      addLog(state, `${graveyardOwner.name} uses Graveyard to recover ${removed.name} for 1 gold.`);
-    }
+  if (graveyardOwner && removed.name !== 'Graveyard' && graveyardOwner.gold >= 1) {
+    state.pendingGraveyard = { playerId: graveyardOwner.id, card: removed };
+    addLog(state, `${graveyardOwner.name} may use Graveyard to recover ${removed.name} for 1 gold.`);
+  } else {
+    state.districtDiscard.push(removed);
   }
+
+  return state;
+}
+
+function handleGraveyardRecover(state: GameState, playerId: string): GameState {
+  if (!state.pendingGraveyard) throw new Error('No Graveyard decision pending.');
+  if (state.pendingGraveyard.playerId !== playerId) throw new Error('Not your Graveyard decision.');
+
+  const playerIndex = state.players.findIndex(p => p.id === playerId);
+  const player = state.players[playerIndex];
+  if (player.gold < 1) throw new Error('Need 1 gold to use Graveyard.');
+
+  state.players[playerIndex] = {
+    ...player,
+    gold: player.gold - 1,
+    hand: [...player.hand, state.pendingGraveyard.card],
+  };
+  addLog(state, `${player.name} uses Graveyard to recover ${state.pendingGraveyard.card.name} for 1 gold.`);
+  state.pendingGraveyard = null;
+
+  return state;
+}
+
+function handleGraveyardPass(state: GameState, playerId: string): GameState {
+  if (!state.pendingGraveyard) throw new Error('No Graveyard decision pending.');
+  if (state.pendingGraveyard.playerId !== playerId) throw new Error('Not your Graveyard decision.');
+
+  state.districtDiscard.push(state.pendingGraveyard.card);
+  state.pendingGraveyard = null;
 
   return state;
 }
@@ -701,6 +727,11 @@ function validatePowerUse(state: GameState, playerId: string, expectedCharacter:
 export function processAction(state: GameState, action: GameAction): GameState {
   state = cloneState(state);
 
+  // A pending Graveyard decision blocks everything else
+  if (state.pendingGraveyard && action.type !== 'GRAVEYARD_RECOVER' && action.type !== 'GRAVEYARD_PASS') {
+    throw new Error('Waiting for the Graveyard owner to decide.');
+  }
+
   switch (action.type) {
     case 'START_GAME':
       return state; // game starts in createGame
@@ -766,6 +797,14 @@ export function processAction(state: GameState, action: GameAction): GameState {
     case 'SMITHY_DRAW':
       if (state.phase !== 'playerTurns') throw new Error('Not in player turns phase.');
       return handleSmithyDraw(state, action.playerId);
+
+    case 'GRAVEYARD_RECOVER':
+      if (state.phase !== 'playerTurns') throw new Error('Not in player turns phase.');
+      return handleGraveyardRecover(state, action.playerId);
+
+    case 'GRAVEYARD_PASS':
+      if (state.phase !== 'playerTurns') throw new Error('Not in player turns phase.');
+      return handleGraveyardPass(state, action.playerId);
 
     default:
       throw new Error(`Unknown action type: ${(action as any).type}`);
@@ -888,6 +927,7 @@ export function getPlayerView(state: GameState, playerId: string): PlayerGameVie
       drawnCards: [], // hide drawn cards from other players
     } : null),
     isMyTurn: state.phase === 'playerTurns' && activePlayerIndex === myIndex,
+    pendingGraveyard: state.pendingGraveyard ?? null,
 
     crownPlayerIndex: state.crownPlayerIndex,
     gameEndTriggered: state.gameEndTriggered,
@@ -921,6 +961,7 @@ export interface AvailableActions {
   canThiefSteal: boolean;
   canMagicianSwap: boolean;
   canWarlordDestroy: boolean;
+  canGraveyardDecide: boolean;
 }
 
 export function getAvailableActions(state: GameState, playerId: string): AvailableActions {
@@ -945,9 +986,15 @@ export function getAvailableActions(state: GameState, playerId: string): Availab
     canThiefSteal: false,
     canMagicianSwap: false,
     canWarlordDestroy: false,
+    canGraveyardDecide: false,
   };
 
   if (!player) return empty;
+
+  // A pending Graveyard decision blocks everything else
+  if (state.pendingGraveyard) {
+    return { ...empty, canGraveyardDecide: state.pendingGraveyard.playerId === playerId };
+  }
 
   // Character choosing phase
   if (state.phase === 'chooseCharacters' && state.choosingPlayerIndex === playerIndex) {
