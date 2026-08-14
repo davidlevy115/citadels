@@ -4,4 +4,4 @@ dist
 out
 *.tsbuildinfo
 .DS_Store
-apps/server/saves
+apps/saves
