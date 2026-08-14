@@ -47,19 +47,70 @@ const DISTRICT_PROMPTS: Record<string, string> = {
   'Great Wall': `massive fortified great wall stretching into distance, purple twilight, watchtowers, impenetrable, ${STYLE_SUFFIX}`,
 };
 
+// One entry per character in the deluxe roster. Characters sharing a rank share
+// a colour cue so the cast still reads as a set: 1 grey/black, 2 brown, 3 indigo,
+// 4 gold, 5 blue, 6 green, 7 amber, 8 red, 9 pink/violet.
 const CHARACTER_PROMPTS: Record<string, string> = {
+  // ── Rank 1 ──
   'Assassin': `hooded assassin lurking in shadows, dark cloak, dagger gleaming, mysterious dangerous figure, portrait, ${STYLE_SUFFIX}`,
+  'Witch': `sinister witch casting a hex, glowing green eyes, gnarled staff, black tattered robes, swirling dark smoke, night forest, portrait, ${STYLE_SUFFIX}`,
+  'Magistrate': `stern medieval magistrate in black judge robes, holding a wax-sealed warrant scroll, gavel, iron chain of office, courtroom shadows, portrait, ${STYLE_SUFFIX}`,
+
+  // ── Rank 2 ──
   'Thief': `charming rogue thief with mask, coin purse, sly smile, moonlit rooftop, portrait, ${STYLE_SUFFIX}`,
+  'Spy': `secretive spy peering from beneath a wide brown hood, brown leather cloak, spyglass, listening at a door, candlelit corridor, portrait, ${STYLE_SUFFIX}`,
+  'Blackmailer': `scheming blackmailer holding a sealed incriminating letter, smug knowing grin, brown coat, dim tavern back room, portrait, ${STYLE_SUFFIX}`,
+
+  // ── Rank 3 ──
   'Magician': `powerful court magician with glowing staff, swirling magical energy, mystical robes, portrait, ${STYLE_SUFFIX}`,
+  'Wizard': `venerable wizard with long white beard, indigo star-covered robes and pointed hat, floating spellbook, arcane runes glowing, portrait, ${STYLE_SUFFIX}`,
+  'Seer': `mysterious blindfolded seer with hands over a glowing crystal ball, indigo veils, visions of cards swirling in the mist, portrait, ${STYLE_SUFFIX}`,
+
+  // ── Rank 4 ──
   'King': `majestic king with golden crown, royal robes, scepter, regal bearing, throne room, portrait, ${STYLE_SUFFIX}`,
+  'Emperor': `imposing emperor in golden laurel crown and imperial purple and gold robes, holding out a crown to give away, marble palace, portrait, ${STYLE_SUFFIX}`,
+  'Patrician': `refined patrician noble in golden brocade, holding a fan of parchment deeds, aristocratic bearing, sunlit estate balcony, portrait, ${STYLE_SUFFIX}`,
+
+  // ── Rank 5 ──
   'Bishop': `wise bishop in ornate blue vestments, golden mitre, holy book, cathedral background, portrait, ${STYLE_SUFFIX}`,
+  'Abbot': `humble round-faced abbot in blue monastic habit, hands folded, small coin purse and scroll at his belt, abbey cloister, portrait, ${STYLE_SUFFIX}`,
+  'Cardinal': `shrewd cardinal in deep blue and crimson robes with a wide brimmed hat, holding a stack of cards and a coin, basilica interior, portrait, ${STYLE_SUFFIX}`,
+
+  // ── Rank 6 ──
   'Merchant': `wealthy merchant with scales and gold coins, fine green clothes, confident smile, portrait, ${STYLE_SUFFIX}`,
+  'Alchemist': `absorbed alchemist in green robes turning lead into gold, bubbling green retorts and flasks, gold coins reforming in the air, laboratory, portrait, ${STYLE_SUFFIX}`,
+  'Trader': `seasoned trader in green travelling clothes beside crates and bolts of cloth, ledger in hand, busy quayside with ships, portrait, ${STYLE_SUFFIX}`,
+
+  // ── Rank 7 ──
   'Architect': `master architect with blueprints and compass, thoughtful expression, buildings rising behind, portrait, ${STYLE_SUFFIX}`,
+  'Navigator': `weathered navigator in amber coat holding an astrolabe and rolled sea chart, compass rose, ship deck under a golden sunset, portrait, ${STYLE_SUFFIX}`,
+  'Scholar': `bookish scholar in amber academic robes surrounded by towering stacks of manuscripts, quill in hand, candlelit study, portrait, ${STYLE_SUFFIX}`,
+
+  // ── Rank 8 ──
   'Warlord': `fierce warlord in red battle armor, war banner, scarred face, burning city backdrop, portrait, ${STYLE_SUFFIX}`,
+  'Diplomat': `smooth diplomat in red and gold envoy's sash, offering a signed treaty with one hand, calculating smile, war camp tent, portrait, ${STYLE_SUFFIX}`,
+  'Marshal': `armoured marshal in red tabard with a badge of office, gauntlet resting on a sword hilt, seizing a deed, city gate, portrait, ${STYLE_SUFFIX}`,
+
+  // ── Rank 9 ──
+  'Queen': `regal queen in a violet gown and jewelled tiara, seated beside an empty throne, poised and watchful, palace hall, portrait, ${STYLE_SUFFIX}`,
+  'Artist': `flamboyant artist in a pink smock with paint-stained hands, brush and palette, gilding a stone facade, workshop of statues, portrait, ${STYLE_SUFFIX}`,
+  'Tax Collector': `gaunt tax collector in violet robes counting a heap of gold coins into a strongbox, ledger and quill, greedy expression, portrait, ${STYLE_SUFFIX}`,
 };
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-');
+}
+
+/**
+ * Stable per-name seed. Name length alone collides badly once there are 27
+ * characters, which makes different cards come back looking alike.
+ */
+function seedFor(slug: string, salt: number): number {
+  let hash = salt;
+  for (let i = 0; i < slug.length; i++) {
+    hash = (hash * 31 + slug.charCodeAt(i)) >>> 0;
+  }
+  return hash % 1_000_000;
 }
 
 async function downloadImage(url: string, path: string): Promise<void> {
@@ -81,7 +132,7 @@ async function main() {
       console.log(`  [skip] ${name} (already exists)`);
       continue;
     }
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${WIDTH}&height=${HEIGHT}&nologo=true&seed=${slug.length * 42}`;
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${WIDTH}&height=${HEIGHT}&nologo=true&seed=${seedFor(slug, 42)}`;
     console.log(`  [generating] ${name}...`);
     try {
       await downloadImage(url, path);
@@ -101,7 +152,7 @@ async function main() {
       console.log(`  [skip] ${name} (already exists)`);
       continue;
     }
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${WIDTH}&height=${HEIGHT}&nologo=true&seed=${slug.length * 77}`;
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${WIDTH}&height=${HEIGHT}&nologo=true&seed=${seedFor(slug, 77)}`;
     console.log(`  [generating] ${name}...`);
     try {
       await downloadImage(url, path);
