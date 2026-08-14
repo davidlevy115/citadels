@@ -198,7 +198,7 @@ describe('Player turns', () => {
 
     expect(() => {
       processAction(state, { type: 'TAKE_GOLD', playerId: activePlayer.id });
-    }).toThrow('Action already taken');
+    }).toThrow('err.actionAlreadyTaken');
   });
 
   it('prevents building before taking action', () => {
@@ -207,7 +207,7 @@ describe('Player turns', () => {
 
     expect(() => {
       processAction(state, { type: 'BUILD_DISTRICT', playerId: activePlayer.id, cardIndex: 0 });
-    }).toThrow('Must take an action first');
+    }).toThrow('err.mustActFirst');
   });
 
   it('allows building after taking action', () => {
@@ -254,7 +254,7 @@ describe('Player turns', () => {
 
     expect(() => {
       processAction(state, { type: 'BUILD_DISTRICT', playerId: activePlayer.id, cardIndex: 0 });
-    }).toThrow('already have');
+    }).toThrow('err.duplicateDistrict');
   });
 
   it('ends turn and advances to next character', () => {
@@ -516,7 +516,7 @@ describe('Character powers', () => {
           targetPlayerId: state.players[1].id,
           districtIndex: 0,
         });
-      }).toThrow('Keep');
+      }).toThrow('err.keepCannotDestroy');
     });
 
     it('cannot destroy Bishop districts', () => {
@@ -536,7 +536,7 @@ describe('Character powers', () => {
           targetPlayerId: state.players[1].id,
           districtIndex: 0,
         });
-      }).toThrow('Bishop');
+      }).toThrow('err.bishopProtected');
     });
 
     it('cannot destroy districts in completed city (8 districts)', () => {
@@ -558,7 +558,7 @@ describe('Character powers', () => {
           targetPlayerId: state.players[1].id,
           districtIndex: 0,
         });
-      }).toThrow('completed city');
+      }).toThrow('err.cannotDestroyCompleted');
     });
 
     it('can destroy after building and collecting income', () => {
@@ -635,7 +635,7 @@ describe('Character powers', () => {
       const state = setupGraveyardDestroy(2);
       expect(() => {
         processAction(state, { type: 'END_TURN', playerId: state.players[0].id });
-      }).toThrow('Graveyard');
+      }).toThrow('err.waitingGraveyard');
     });
 
     it('owner pays 1 gold to recover the district', () => {
@@ -666,7 +666,7 @@ describe('Character powers', () => {
       const state = setupGraveyardDestroy(2);
       expect(() => {
         processAction(state, { type: 'GRAVEYARD_RECOVER', playerId: state.players[3].id });
-      }).toThrow('Not your Graveyard decision');
+      }).toThrow('err.notYourGraveyardDecision');
     });
 
     it('the targeted player CAN use their own Graveyard', () => {

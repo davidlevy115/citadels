@@ -14,6 +14,8 @@ import { PowerActions } from './PowerActions';
 import { GameLog } from './GameLog';
 import { TurnSummaryPopup } from './TurnSummaryPopup';
 import { useGameStore } from '@/hooks/useGameState';
+import { useT } from '@/hooks/useI18n';
+import type { WireError } from '@/lib/i18n';
 
 type DetailTarget =
   | { type: 'district'; card: DistrictCard | BuiltDistrict }
@@ -23,7 +25,7 @@ type DetailTarget =
 interface GameBoardProps {
   view: PlayerGameView;
   onAction: (action: any) => void;
-  actionError: string | null;
+  actionError: WireError | null;
   roomId?: string | null;
   /** Dismiss the turn recap on screen; the game resumes once everyone has. */
   onDismissTurnSummary: (summaryId: string) => void;
@@ -33,6 +35,7 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
   const me = view.players[view.myIndex];
   const turnState = view.turnState;
   const isMyTurn = view.isMyTurn;
+  const t = useT();
   const [detailTarget, setDetailTarget] = useState<DetailTarget>(null);
   const turnSummary = useGameStore(s => s.turnSummary);
 
@@ -120,28 +123,28 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
             <button
               onClick={() => navigator.clipboard.writeText(roomId)}
               className="px-2 py-0.5 bg-amber-900/40 hover:bg-amber-900/60 rounded text-[10px] text-amber-300 font-mono tracking-widest transition-colors"
-              title="Click to copy room code"
+              title={t('board.copyRoomCode')}
             >
               {roomId}
             </button>
           )}
         </div>
         <div className="flex items-center gap-3 text-[11px] text-slate-400">
-          <span>Round {view.round}</span>
-          <span>Deck {view.districtDeckCount}</span>
+          <span>{t('board.round', { round: view.round })}</span>
+          <span>{t('board.deck', { count: view.districtDeckCount })}</span>
           {view.taxPot > 0 && (
-            <span className="text-amber-300" title="Gold waiting on the Tax Collector">Tax {view.taxPot}</span>
+            <span className="text-amber-300">{t('board.tax', { amount: view.taxPot })}</span>
           )}
           {view.myCharacter && (
             <button
               onClick={() => setDetailTarget({ type: 'character', character: view.myCharacter! })}
               className="text-amber-300 hover:text-amber-200 font-medium transition-colors"
             >
-              {view.myCharacter.name}
+              {t.character(view.myCharacter.name)}
             </button>
           )}
           {view.gameEndTriggered && (
-            <span className="bg-red-600 px-1.5 py-0.5 rounded text-[10px] text-white animate-pulse">FINAL</span>
+            <span className="bg-red-600 px-1.5 py-0.5 rounded text-[10px] text-white animate-pulse">{t('board.final')}</span>
           )}
         </div>
       </div>
@@ -203,22 +206,22 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
             <div className="text-center mb-2">
               {view.phase === 'chooseCharacters' && (
                 <div>
-                  <div className="text-[10px] text-emerald-600 uppercase tracking-[0.2em]">Round {view.round}</div>
+                  <div className="text-[10px] text-emerald-600 uppercase tracking-[0.2em]">{t('board.round', { round: view.round })}</div>
                   <div className="text-sm text-emerald-200 font-medium">
-                    {view.isMyTurnToChoose ? 'Choose your character' : 'Choosing characters...'}
+                    {view.isMyTurnToChoose ? t('board.chooseYourCharacter') : t('board.choosingCharacters')}
                   </div>
                 </div>
               )}
               {view.phase === 'playerTurns' && calledCharacter && (
                 <motion.div key={`${view.currentCharacterRank}-${turnState?.isWitchResume}`} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
                   <div className="text-[10px] text-emerald-600 uppercase tracking-[0.2em]">
-                    {turnState?.isWitchResume ? 'Bewitched — the Witch plays' : 'Now playing'}
+                    {turnState?.isWitchResume ? t('board.bewitchedPlays') : t('board.nowPlaying')}
                   </div>
-                  <div className="text-base font-bold text-amber-300">{calledCharacter.name} <span className="text-emerald-600 text-xs">#{calledCharacter.rank}</span></div>
+                  <div className="text-base font-bold text-amber-300">{t.character(calledCharacter.name)} <span className="text-emerald-600 text-xs">#{calledCharacter.rank}</span></div>
                 </motion.div>
               )}
               {view.phase === 'gameOver' && (
-                <div className="text-lg font-bold text-amber-400">Game Over</div>
+                <div className="text-lg font-bold text-amber-400">{t('board.gameOver')}</div>
               )}
             </div>
 
@@ -254,7 +257,7 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   className="bg-red-900/60 border border-red-700 rounded-lg px-3 py-1.5 text-xs text-red-300 mb-2"
                 >
-                  {actionError}
+                  {t.error(actionError)}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -262,7 +265,7 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
             {/* Pending decision notice */}
             {somebodyElseIsDeciding && (
               <div className="text-center text-[11px] text-purple-300 animate-pulse mb-2">
-                Waiting for another player to decide...
+                {t('board.waitingForDecision')}
               </div>
             )}
 
@@ -270,21 +273,21 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
             {isMyTurn && turnState && !somebodyElseIsDeciding && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
                 <div className="text-center text-[11px] text-cyan-300 font-medium">
-                  {!turnState.actionTaken ? 'Your turn — choose an action'
-                    : turnState.phase === 'choosingCard' ? 'Pick a card to keep'
-                    : turnState.isBewitchedTurn ? 'Bewitched — your turn ends here'
-                    : 'Build, use powers, or end turn'}
+                  {!turnState.actionTaken ? t('board.yourTurnChooseAction')
+                    : turnState.phase === 'choosingCard' ? t('board.pickCardToKeep')
+                    : turnState.isBewitchedTurn ? t('board.bewitchedTurnEnds')
+                    : t('board.buildUsePowersEnd')}
                 </div>
 
                 {!turnState.actionTaken && (
                   <div className="flex gap-2 justify-center">
                     <button onClick={() => onAction({ type: 'TAKE_GOLD' })}
                       className="px-4 py-2 bg-yellow-700 hover:bg-yellow-600 rounded-lg text-sm font-bold transition-colors shadow-lg text-yellow-100">
-                      &#9733; Take Gold
+                      {t('board.takeGold')}
                     </button>
                     <button onClick={() => onAction({ type: 'DRAW_CARDS' })}
                       className="px-4 py-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg text-sm font-bold transition-colors shadow-lg text-emerald-100">
-                      &#9830; Draw {turnState.effectiveCharacter.name === 'Scholar' ? '7 ' : ''}Cards
+                      {turnState.effectiveCharacter.name === 'Scholar' ? t('board.drawSevenCards') : t('board.drawCards')}
                     </button>
                   </div>
                 )}
@@ -297,7 +300,7 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
                   <div className="flex justify-center">
                     <button onClick={() => onAction({ type: 'END_TURN' })}
                       className="px-4 py-1.5 bg-slate-700/80 hover:bg-slate-600/80 rounded-lg text-xs font-medium text-slate-300 transition-colors">
-                      End Turn &rarr;
+                      {t('board.endTurn')}
                     </button>
                   </div>
                 )}
@@ -307,14 +310,14 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
             {view.phase === 'playerTurns' && !isMyTurn && (
               <div className="flex-1 flex items-center justify-center min-h-[60px]">
                 <motion.div className="text-sm text-emerald-600" animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 2 }}>
-                  Waiting...
+                  {t('board.waiting')}
                 </motion.div>
               </div>
             )}
             {view.phase === 'chooseCharacters' && !view.isMyTurnToChoose && (
               <div className="flex-1 flex items-center justify-center min-h-[60px]">
                 <motion.div className="text-sm text-emerald-600" animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 2 }}>
-                  Choosing...
+                  {t('board.choosing')}
                 </motion.div>
               </div>
             )}
@@ -376,7 +379,7 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
             )}
 
             {isMyTurn && turnState?.actionTaken && (turnState?.districtsBuilt ?? 0) < (turnState?.maxDistricts ?? 1) && (
-              <span className="text-[10px] text-cyan-400 animate-pulse shrink-0 ml-auto">Tap card to build</span>
+              <span className="text-[10px] text-cyan-400 animate-pulse shrink-0 ml-auto">{t('board.tapCardToBuild')}</span>
             )}
           </div>
 
@@ -411,7 +414,7 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
               })}
             </AnimatePresence>
             {view.myHand.length === 0 && (
-              <div className="text-slate-600 text-xs italic py-2">No cards</div>
+              <div className="text-slate-600 text-xs italic py-2">{t('board.noCards')}</div>
             )}
           </div>
         </div>
@@ -423,6 +426,7 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
 // ── Sub-overlays ────────────────────────────────────────────────
 
 function MyCityDisplay({ city, onDistrictClick }: { city: BuiltDistrict[]; onDistrictClick: (d: BuiltDistrict) => void }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   return (
     <>
@@ -451,19 +455,20 @@ function MyCityDisplay({ city, onDistrictClick }: { city: BuiltDistrict[]; onDis
           </div>
         </div>
 
-        <div className="hidden lg:block text-[9px] text-slate-500 text-center mt-0.5">{city.length}/8</div>
+        <div className="hidden lg:block text-[9px] text-slate-500 text-center mt-0.5">{t('board.districts', { count: city.length })}</div>
       </div>
     </>
   );
 }
 
 function CardChoiceOverlay({ cards, myHand, onChoose, onDetail }: { cards: DistrictCard[]; myHand: DistrictCard[]; onChoose: (i: number) => void; onDetail: (card: DistrictCard) => void }) {
+  const t = useT();
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-slate-800 rounded-xl p-5 border border-slate-600 max-w-lg w-full mx-4 max-h-[90dvh] overflow-y-auto">
-        <h2 className="text-base font-bold text-center mb-1 text-amber-300">Choose a Card to Keep</h2>
-        <p className="text-xs text-slate-400 text-center mb-4">The other{cards.length > 2 ? 's go' : ' goes'} back to the deck</p>
+        <h2 className="text-base font-bold text-center mb-1 text-amber-300">{t('choice.title')}</h2>
+        <p className="text-xs text-slate-400 text-center mb-4">{cards.length > 2 ? t('choice.othersGoBack') : t('choice.otherGoesBack')}</p>
         <div className="flex gap-4 justify-center flex-wrap">
           {cards.map((card, i) => (
             <div key={i} className="flex flex-col items-center gap-2">
@@ -472,7 +477,7 @@ function CardChoiceOverlay({ cards, myHand, onChoose, onDetail }: { cards: Distr
                 onClick={() => onChoose(i)}
                 className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-bold text-white transition-colors shadow-lg w-full"
               >
-                Keep
+                {t('choice.keep')}
               </button>
             </div>
           ))}
@@ -481,7 +486,7 @@ function CardChoiceOverlay({ cards, myHand, onChoose, onDetail }: { cards: Distr
         {/* Show current hand */}
         {myHand.length > 0 && (
           <div className="mt-5 pt-4 border-t border-slate-700">
-            <p className="text-[10px] text-slate-500 text-center mb-2 uppercase tracking-wide">Your current hand</p>
+            <p className="text-[10px] text-slate-500 text-center mb-2 uppercase tracking-wide">{t('choice.yourHand')}</p>
             <div className="flex gap-1.5 justify-center flex-wrap">
               {myHand.map((card) => (
                 <DistrictCardView key={card.id} card={card} small disabled onDetail={() => onDetail(card)} />
@@ -501,13 +506,14 @@ function GraveyardOverlay({ card, gold, onRecover, onPass, onDetail }: {
   onPass: () => void;
   onDetail: (card: DistrictCard) => void;
 }) {
+  const t = useT();
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-slate-800 rounded-xl p-5 border border-purple-600/60 max-w-sm w-full mx-4">
-        <h2 className="text-base font-bold text-center mb-1 text-purple-300">Graveyard</h2>
+        <h2 className="text-base font-bold text-center mb-1 text-purple-300">{t('graveyard.title')}</h2>
         <p className="text-xs text-slate-400 text-center mb-4">
-          {card.name} was destroyed. Pay 1 gold to take it into your hand?
+          {t('graveyard.prompt', { district: card.name })}
         </p>
         <div className="flex justify-center mb-4">
           <DistrictCardView card={card} onDetail={() => onDetail(card)} />
@@ -518,13 +524,13 @@ function GraveyardOverlay({ card, gold, onRecover, onPass, onDetail }: {
             disabled={gold < 1}
             className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-xs font-bold text-white transition-colors shadow-lg"
           >
-            Recover (1 gold)
+            {t('graveyard.recover')}
           </button>
           <button
             onClick={onPass}
             className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs font-bold text-slate-200 transition-colors"
           >
-            Decline
+            {t('graveyard.decline')}
           </button>
         </div>
       </div>
@@ -538,14 +544,14 @@ function MagistrateOverlay({ pending, onConfiscate, onPass, onDetail }: {
   onPass: () => void;
   onDetail: (card: DistrictCard) => void;
 }) {
+  const t = useT();
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-slate-800 rounded-xl p-5 border border-amber-600/60 max-w-sm w-full mx-4">
-        <h2 className="text-base font-bold text-center mb-1 text-amber-300">Signed Warrant</h2>
+        <h2 className="text-base font-bold text-center mb-1 text-amber-300">{t('magistrate.title')}</h2>
         <p className="text-xs text-slate-400 text-center mb-4">
-          {pending.targetPlayerName} just paid to build {pending.card.name}. Reveal your warrant to
-          confiscate it — they get their gold back and it is built in your city for free.
+          {t('magistrate.prompt', { player: pending.targetPlayerName, district: pending.card.name })}
         </p>
         <div className="flex justify-center mb-4">
           <DistrictCardView card={pending.card} onDetail={() => onDetail(pending.card)} />
@@ -553,11 +559,11 @@ function MagistrateOverlay({ pending, onConfiscate, onPass, onDetail }: {
         <div className="flex gap-2 justify-center">
           <button onClick={onConfiscate}
             className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-xs font-bold text-white transition-colors shadow-lg">
-            Confiscate
+            {t('magistrate.confiscate')}
           </button>
           <button onClick={onPass}
             className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs font-bold text-slate-200 transition-colors">
-            Stay hidden
+            {t('magistrate.stayHidden')}
           </button>
         </div>
       </div>
@@ -572,51 +578,49 @@ function BlackmailOverlay({ pending, myThreats, cast, currentRank, onAction }: {
   currentRank: number;
   onAction: (action: any) => void;
 }) {
+  const t = useT();
   const isBribeStage = pending.stage === 'bribe';
-  const threatOnTarget = myThreats.find(t => t.rank === currentRank);
+  const threatOnTarget = myThreats.find(threat => threat.rank === currentRank);
   const targetCharacter = cast.find(c => c.rank === currentRank);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-slate-800 rounded-xl p-5 border border-rose-600/60 max-w-sm w-full mx-4">
-        <h2 className="text-base font-bold text-center mb-1 text-rose-300">Blackmail</h2>
+        <h2 className="text-base font-bold text-center mb-1 text-rose-300">{t('blackmail.title')}</h2>
 
         {isBribeStage ? (
           <>
             <p className="text-xs text-slate-400 text-center mb-4">
-              {pending.blackmailerName} has a threat marker on you. Bribe them {pending.bribeAmount} gold
-              (half your stash) to make it go away, or refuse and gamble that it is a bluff — if it is
-              real they take everything you have.
+              {t('blackmail.bribePrompt', { player: pending.blackmailerName, amount: pending.bribeAmount })}
             </p>
             <div className="flex gap-2 justify-center">
               <button onClick={() => onAction({ type: 'BLACKMAIL_PAY' })}
                 className="px-4 py-1.5 bg-rose-700 hover:bg-rose-600 rounded-lg text-xs font-bold text-white transition-colors shadow-lg">
-                Pay {pending.bribeAmount} gold
+                {t('blackmail.pay', { amount: pending.bribeAmount })}
               </button>
               <button onClick={() => onAction({ type: 'BLACKMAIL_REFUSE' })}
                 className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs font-bold text-slate-200 transition-colors">
-                Refuse
+                {t('blackmail.refuse')}
               </button>
             </div>
           </>
         ) : (
           <>
             <p className="text-xs text-slate-400 text-center mb-4">
-              The {targetCharacter?.name ?? 'target'} refused to pay. Your marker on them is{' '}
-              <span className={threatOnTarget?.real ? 'text-rose-300 font-bold' : 'text-slate-300 font-bold'}>
-                {threatOnTarget?.real ? 'the real threat' : 'a bluff'}
-              </span>
-              . Revealing it takes all their gold if it is real — and shows your hand if it is not.
+              {t('blackmail.revealPrompt', {
+                character: targetCharacter?.name ?? '',
+                kind: threatOnTarget?.real ? t('blackmail.realThreat') : t('blackmail.bluff'),
+              })}
             </p>
             <div className="flex gap-2 justify-center">
               <button onClick={() => onAction({ type: 'BLACKMAIL_REVEAL' })}
                 className="px-4 py-1.5 bg-rose-700 hover:bg-rose-600 rounded-lg text-xs font-bold text-white transition-colors shadow-lg">
-                Reveal the marker
+                {t('blackmail.reveal')}
               </button>
               <button onClick={() => onAction({ type: 'BLACKMAIL_SKIP' })}
                 className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs font-bold text-slate-200 transition-colors">
-                Leave it facedown
+                {t('blackmail.leaveFacedown')}
               </button>
             </div>
           </>
@@ -627,6 +631,7 @@ function BlackmailOverlay({ pending, myThreats, cast, currentRank, onAction }: {
 }
 
 function GameOverOverlay({ view }: { view: PlayerGameView }) {
+  const t = useT();
   if (!view.scores) return null;
   const sorted = [...view.scores].sort((a, b) => b.totalPoints - a.totalPoints);
 
@@ -634,7 +639,7 @@ function GameOverOverlay({ view }: { view: PlayerGameView }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-slate-800 rounded-xl p-6 max-w-sm w-full mx-4 border border-amber-500/50">
-        <h2 className="text-xl font-bold text-center text-amber-400 mb-4">Game Over</h2>
+        <h2 className="text-xl font-bold text-center text-amber-400 mb-4">{t('over.title')}</h2>
         <div className="space-y-2">
           {sorted.map((score, i) => (
             <div key={score.playerId} className={`flex items-center justify-between p-2.5 rounded-lg ${
@@ -645,10 +650,10 @@ function GameOverOverlay({ view }: { view: PlayerGameView }) {
                 <div>
                   <div className="font-medium text-sm">{score.playerName}</div>
                   <div className="text-[10px] text-slate-400">
-                    {score.districtPoints}pts
-                    {score.colorBonusPoints > 0 && ` +${score.colorBonusPoints}col`}
-                    {score.firstToEightPoints > 0 && ` +${score.firstToEightPoints}first`}
-                    {score.otherEightPoints > 0 && ` +${score.otherEightPoints}`}
+                    {t('over.points', { points: score.districtPoints })}
+                    {score.colorBonusPoints > 0 && ` ${t('over.colourBonus', { points: score.colorBonusPoints })}`}
+                    {score.firstToEightPoints > 0 && ` ${t('over.firstBonus', { points: score.firstToEightPoints })}`}
+                    {score.otherEightPoints > 0 && ` ${t('over.otherBonus', { points: score.otherEightPoints })}`}
                   </div>
                 </div>
               </div>
@@ -659,7 +664,7 @@ function GameOverOverlay({ view }: { view: PlayerGameView }) {
         <div className="mt-4 text-center">
           <button onClick={() => window.location.reload()}
             className="px-5 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-medium transition-colors text-sm">
-            Play Again
+            {t('over.playAgain')}
           </button>
         </div>
       </div>

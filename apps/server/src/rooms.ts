@@ -2,7 +2,8 @@ import type { Server, Socket } from 'socket.io';
 import {
   createGame, processAction, getPlayerView, getBotAction,
   hasPendingDecision, pendingDecisionPlayerId,
-  type GameState, type GameConfig, type GameAction, type BotTurnSummary,
+  TURN_START_KEYS, ROUND_FRAMING_KEYS, isGameError,
+  type GameState, type GameConfig, type GameAction, type BotTurnSummary, type LogEntry,
 } from '@citadels/game-logic';
 import { saveGame, loadGame, listSavedGames } from './storage.js';
 
@@ -64,30 +65,10 @@ function turnKey(state: GameState | null): string | null {
   return `${t.playerId}:${t.characterRank}:${t.isWitchResume ? 'w' : t.isBewitchedTurn ? 'b' : 'n'}`;
 }
 
-/**
- * Lines that mark the start of a new turn. A single action can finish one turn
- * and begin the next, so entries after this line belong to the turn that is
- * only just starting.
- */
-const TURN_BOUNDARY = [
-  / is called\. .* reveals\.$/,
-  /\(Witch\) resumes their turn as the /,
-];
-
-/** Log lines that describe the round rather than any one player's actions. */
-const NARRATION_NOISE = [
-  /^Round \d+:/,
-  /chose a character\.$/,
-  /^Character selection/,
-  /^Game started/,
-  /^Characters in play:/,
-  / was killed! .* skips their turn\.$/,   // happens between turns
-  /'s heir\) takes the Crown\.$/,          // resolved at the end of the round
-  /^Game over!/,
-];
-
-const isBoundary = (m: string) => TURN_BOUNDARY.some(re => re.test(m));
-const isNoise = (m: string) => NARRATION_NOISE.some(re => re.test(m));
+// A single action can finish one turn and begin the next, so entries from the
+// turn-start key onwards belong to the turn that is only just starting.
+const isBoundary = (e: LogEntry) => TURN_START_KEYS.includes(e.key);
+const isNoise = (e: LogEntry) => ROUND_FRAMING_KEYS.includes(e.key);
 
 function startTurnNarration(room: GameRoom, key: string | null): void {
   if (!key || !room.state?.turnState) {
@@ -132,14 +113,14 @@ function applyAction(room: GameRoom, action: GameAction): void {
 
   const logBefore = room.state.log.length;
   room.state = processAction(room.state, action);
-  const produced = room.state.log.slice(logBefore).map(e => e.message);
+  const produced = room.state.log.slice(logBefore);
 
   const boundary = produced.findIndex(isBoundary);
   const beforeBoundary = boundary === -1 ? produced : produced.slice(0, boundary);
   const afterBoundary = boundary === -1 ? [] : produced.slice(boundary + 1);
 
   if (room.currentTurn) {
-    room.currentTurn.actions.push(...beforeBoundary.filter(m => !isNoise(m)));
+    room.currentTurn.actions.push(...beforeBoundary.filter(e => !isNoise(e)));
   }
 
   const keyAfter = turnKey(room.state);
@@ -147,7 +128,7 @@ function applyAction(room: GameRoom, action: GameAction): void {
     flushTurnNarration(room);
     startTurnNarration(room, keyAfter);
     if (room.currentTurn) {
-      room.currentTurn.actions.push(...afterBoundary.filter(m => !isNoise(m)));
+      room.currentTurn.actions.push(...afterBoundary.filter(e => !isNoise(e)));
     }
   }
 }
@@ -345,7 +326,7 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     }
 
     if (players.length < 2) {
-      socket.emit('error', 'Need at least 2 players.');
+      socket.emit('error', { code: 'err.needTwoPlayers' });
       return;
     }
 
@@ -357,7 +338,9 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
         includeRank9: !!config.includeRank9,
       });
     } catch (e: any) {
-      socket.emit('error', e.message);
+      socket.emit('error', isGameError(e)
+        ? { code: e.code, params: e.params }
+        : { code: 'err.unknown', params: { detail: String(e?.message ?? e) } });
       return;
     }
 
@@ -387,12 +370,12 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
   socket.on('joinRoom', (data: { roomId: string; playerName: string; playerAge?: number }) => {
     const room = rooms.get(data.roomId);
     if (!room) {
-      socket.emit('error', 'Room not found.');
+      socket.emit('error', { code: 'err.roomNotFound' });
       return;
     }
 
     if (room.players.length >= room.totalHumansNeeded) {
-      socket.emit('error', 'Room is full.');
+      socket.emit('error', { code: 'err.roomFull' });
       return;
     }
 
@@ -438,7 +421,7 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     }
 
     if (pendingConfig.length < 2 || pendingConfig.length > 7) {
-      socket.emit('error', 'Need 2-7 total players.');
+      socket.emit('error', { code: 'err.playerCountRange' });
       return;
     }
 
@@ -467,13 +450,13 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
   socket.on('gameAction', (data: { roomId: string; action: GameAction }) => {
     const room = rooms.get(data.roomId);
     if (!room || !room.state) {
-      socket.emit('error', 'Game not started yet.');
+      socket.emit('error', { code: 'err.gameNotStarted' });
       return;
     }
 
     const rp = room.players.find(p => p.socketId === socket.id);
     if (!rp) {
-      socket.emit('error', 'You are not in this room.');
+      socket.emit('error', { code: 'err.notInRoom' });
       return;
     }
 
@@ -484,7 +467,9 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       broadcastState(io, room);
       advanceRoom(io, room);
     } catch (e: any) {
-      socket.emit('actionError', e.message);
+      socket.emit('actionError', isGameError(e)
+        ? { code: e.code, params: e.params }
+        : { code: 'err.unknown', params: { detail: String(e?.message ?? e) } });
     }
   });
 
@@ -507,13 +492,13 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
   socket.on('loadGame', (data: { gameId: string; playerName: string }) => {
     const state = loadGame(data.gameId);
     if (!state) {
-      socket.emit('error', 'Saved game not found.');
+      socket.emit('error', { code: 'err.saveNotFound' });
       return;
     }
 
     const humanPlayer = state.players.find(p => !p.isBot);
     if (!humanPlayer) {
-      socket.emit('error', 'No human player found in saved game.');
+      socket.emit('error', { code: 'err.noHumanInSave' });
       return;
     }
 

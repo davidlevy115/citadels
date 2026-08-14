@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import type { PlayerGameView, Character, DistrictType } from '@citadels/game-logic';
 import { districtValue } from '@citadels/game-logic';
+import { useT } from '@/hooks/useI18n';
 
 interface PowerActionsProps {
   view: PlayerGameView;
@@ -22,6 +23,7 @@ function PowerPanel({ label, tone, title, children, hint }: {
   hint?: string;
   children: (close: () => void) => ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   if (!open) {
@@ -38,7 +40,7 @@ function PowerPanel({ label, tone, title, children, hint }: {
       {hint && <p className="text-[10px] text-slate-500 leading-snug">{hint}</p>}
       {children(() => setOpen(false))}
       <button onClick={() => setOpen(false)} className={`${CHIP} bg-slate-600 hover:bg-slate-500`}>
-        Cancel
+        {t('power.cancel')}
       </button>
     </div>
   );
@@ -66,13 +68,14 @@ function RankTargets({ view, minRank, exclude, onPick, tone }: {
   onPick: (rank: number) => void;
   tone: string;
 }) {
+  const t = useT();
   const targets = targetableRanks(view, minRank, exclude ?? []);
 
   return (
     <div className="flex flex-wrap gap-1">
       {targets.map(c => (
         <button key={c.rank} onClick={() => onPick(c.rank)} className={`${CHIP} bg-gray-700 ${tone}`}>
-          <span className="text-slate-400 mr-1">{c.rank}</span>{c.name}
+          <span className="text-slate-400 mr-1">{c.rank}</span>{t.character(c.name)}
         </button>
       ))}
     </div>
@@ -82,6 +85,7 @@ function RankTargets({ view, minRank, exclude, onPick, tone }: {
 // ── Main ────────────────────────────────────────────────────────
 
 export function PowerActions({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const turn = view.turnState;
   if (!turn || !view.isMyTurn) return null;
 
@@ -98,7 +102,7 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
   if (turn.isBewitchedTurn) {
     return (
       <div className="text-[11px] text-purple-300 text-center">
-        Bewitched — gather resources, then your turn ends.
+        {t('power.bewitchedNote')}
       </div>
     );
   }
@@ -109,13 +113,13 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
     <div className="flex flex-wrap gap-2 justify-center max-w-full">
       {turn.isWitchResume && (
         <div className="w-full text-center text-[11px] text-purple-300">
-          Playing the bewitched {char.name}&apos;s turn.
+          {t('power.playingAs', { character: char.name })}
         </div>
       )}
 
       {/* ── Rank 1 ── */}
       {char.name === 'Assassin' && powerFree && (
-        <PowerPanel label="Kill…" tone="bg-gray-700 hover:bg-gray-600" title="Kill a character">
+        <PowerPanel label={t('power.kill')} tone="bg-gray-700 hover:bg-gray-600" title={t('power.killTitle')}>
           {close => (
             <RankTargets view={view} minRank={2} tone="hover:bg-red-700"
               onPick={r => { onAction({ type: 'ASSASSIN_KILL', targetRank: r }); close(); }} />
@@ -124,9 +128,8 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
       )}
 
       {char.name === 'Witch' && powerFree && acted && (
-        <PowerPanel label="Bewitch…" tone="bg-purple-800 hover:bg-purple-700"
-          title="Bewitch a character"
-          hint="Your turn pauses. When they are called they may only gather resources — then you play their turn.">
+        <PowerPanel label={t('power.bewitch')} tone="bg-purple-800 hover:bg-purple-700"
+          title={t('power.bewitchTitle')} hint={t('power.bewitchHint')}>
           {close => (
             <RankTargets view={view} minRank={2} tone="hover:bg-purple-700"
               onPick={r => { onAction({ type: 'WITCH_BEWITCH', targetRank: r }); close(); }} />
@@ -140,7 +143,7 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
 
       {/* ── Rank 2 ── */}
       {char.name === 'Thief' && powerFree && (
-        <PowerPanel label="Steal from…" tone="bg-gray-700 hover:bg-gray-600" title="Rob a character">
+        <PowerPanel label={t('power.steal')} tone="bg-gray-700 hover:bg-gray-600" title={t('power.stealTitle')}>
           {close => (
             <RankTargets view={view} minRank={3}
               exclude={[view.murderedCharacter, view.bewitchedCharacter].filter((r): r is number => r != null)}
@@ -170,8 +173,8 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
       {char.name === 'Seer' && powerFree && (
         <button onClick={() => onAction({ type: 'SEER_TAKE' })}
           className={`${BTN} bg-indigo-700 hover:bg-indigo-600`}
-          title="Take a random card from every player, then hand one back to each">
-          Take a card from everyone
+          title={t('power.seerTitle')}>
+          {t('power.seerTake')}
         </button>
       )}
 
@@ -188,7 +191,7 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
       {char.name !== 'Abbot' && !turn.incomeCollected && acted && hasIncome(char.name) && (
         <button onClick={() => onAction({ type: 'USE_POWER' })}
           className={`${BTN} bg-amber-600 hover:bg-amber-500`}>
-          {char.name === 'Patrician' || char.name === 'Cardinal' ? 'Draw District Income' : 'Collect Income'}
+          {char.name === 'Patrician' || char.name === 'Cardinal' ? t('power.drawIncome') : t('power.collectIncome')}
         </button>
       )}
 
@@ -202,11 +205,11 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
         <div className="flex gap-2">
           <button onClick={() => onAction({ type: 'NAVIGATOR_GAIN', choice: 'gold' })}
             className={`${BTN} bg-yellow-700 hover:bg-yellow-600 text-yellow-100`}>
-            Take 4 Gold
+            {t('power.navigatorGold')}
           </button>
           <button onClick={() => onAction({ type: 'NAVIGATOR_GAIN', choice: 'cards' })}
             className={`${BTN} bg-emerald-800 hover:bg-emerald-700 text-emerald-100`}>
-            Draw 4 Cards
+            {t('power.navigatorCards')}
           </button>
         </div>
       )}
@@ -232,20 +235,20 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
       {char.name === 'Tax Collector' && powerFree && view.taxPot > 0 && (
         <button onClick={() => onAction({ type: 'TAX_COLLECTOR_COLLECT' })}
           className={`${BTN} bg-yellow-700 hover:bg-yellow-600 text-yellow-100`}>
-          Collect {view.taxPot} gold in tax
+          {t('power.collectTax', { amount: view.taxPot })}
         </button>
       )}
 
       {/* ── Special buildings ── */}
       {myCity.some(d => d.name === 'Laboratory') && !specialUsed.includes('Laboratory') && view.myHand.length > 0 && (
-        <PowerPanel label="Laboratory (discard for 2g)" tone="bg-teal-700 hover:bg-teal-600"
-          title="Discard a card to gain 2 gold">
+        <PowerPanel label={t('power.laboratory')} tone="bg-teal-700 hover:bg-teal-600"
+          title={t('power.laboratoryTitle')}>
           {close => (
             <div className="flex flex-wrap gap-1">
               {view.myHand.map((card, i) => (
                 <button key={i} className={`${CHIP} bg-teal-700 hover:bg-teal-600`}
                   onClick={() => { onAction({ type: 'LABORATORY_DISCARD', cardIndex: i }); close(); }}>
-                  {card.name} ({card.cost}g)
+                  {t.district(card.name)} ({card.cost})
                 </button>
               ))}
             </div>
@@ -256,8 +259,8 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
       {myCity.some(d => d.name === 'Smithy') && !specialUsed.includes('Smithy') && myGold >= 2 && (
         <button onClick={() => onAction({ type: 'SMITHY_DRAW' })}
           className={`${BTN} bg-orange-700 hover:bg-orange-600`}
-          title="Pay 2 gold to draw 3 district cards">
-          Smithy (pay 2g, draw 3)
+          title={t('power.smithy')}>
+          {t('power.smithy')}
         </button>
       )}
 
@@ -265,7 +268,7 @@ export function PowerActions({ view, onAction }: PowerActionsProps) {
       {powerFree && !mustUsePower && acted && isOptionalPower(char.name) && (
         <button onClick={() => onAction({ type: 'SKIP_POWER' })}
           className={`${BTN} bg-slate-700/80 hover:bg-slate-600/80 text-slate-300 text-xs`}>
-          Skip {char.name} power
+          {t('power.skip', { character: t.character(char.name) })}
         </button>
       )}
     </div>
@@ -286,13 +289,13 @@ function isOptionalPower(name: string): boolean {
 // ── Individual powers ───────────────────────────────────────────
 
 function MagistrateAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const [picked, setPicked] = useState<number[]>([]);
   const targets = targetableRanks(view, 2);
 
   return (
-    <PowerPanel label="Issue warrants…" tone="bg-gray-700 hover:bg-gray-600"
-      title="Assign three warrants"
-      hint="Pick three characters. The first one you pick gets the signed warrant — only that one lets you confiscate.">
+    <PowerPanel label={t('power.warrants')} tone="bg-gray-700 hover:bg-gray-600"
+      title={t('power.warrantsTitle')} hint={t('power.warrantsHint')}>
       {close => (
         <>
           <div className="flex flex-wrap gap-1">
@@ -304,8 +307,8 @@ function MagistrateAction({ view, onAction }: PowerActionsProps) {
                   className={`${CHIP} ${
                     idx === 0 ? 'bg-red-700' : idx > 0 ? 'bg-slate-500' : 'bg-gray-700 hover:bg-gray-600'
                   }`}>
-                  <span className="text-slate-300 mr-1">{c.rank}</span>{c.name}
-                  {idx === 0 && <span className="ml-1 text-[9px]">SIGNED</span>}
+                  <span className="text-slate-300 mr-1">{c.rank}</span>{t.character(c.name)}
+                  {idx === 0 && <span className="ml-1 text-[9px]">{t('power.signed')}</span>}
                 </button>
               );
             })}
@@ -313,7 +316,7 @@ function MagistrateAction({ view, onAction }: PowerActionsProps) {
           <button disabled={picked.length !== 3}
             onClick={() => { onAction({ type: 'MAGISTRATE_WARRANTS', signedRank: picked[0], otherRanks: picked.slice(1) }); close(); }}
             className={`${CHIP} bg-amber-600 hover:bg-amber-500`}>
-            Place warrants ({picked.length}/3)
+            {t('power.placeWarrants', { count: picked.length })}
           </button>
         </>
       )}
@@ -322,13 +325,13 @@ function MagistrateAction({ view, onAction }: PowerActionsProps) {
 }
 
 function BlackmailerAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const [picked, setPicked] = useState<number[]>([]);
   const targets = targetableRanks(view, 3, [view.murderedCharacter, view.bewitchedCharacter]);
 
   return (
-    <PowerPanel label="Threaten…" tone="bg-gray-700 hover:bg-gray-600"
-      title="Threaten two characters"
-      hint="The first one you pick gets the real threat; the second is a bluff. Both must bribe you or gamble.">
+    <PowerPanel label={t('power.threaten')} tone="bg-gray-700 hover:bg-gray-600"
+      title={t('power.threatenTitle')} hint={t('power.threatenHint')}>
       {close => (
         <>
           <div className="flex flex-wrap gap-1">
@@ -340,8 +343,8 @@ function BlackmailerAction({ view, onAction }: PowerActionsProps) {
                   className={`${CHIP} ${
                     idx === 0 ? 'bg-red-700' : idx > 0 ? 'bg-slate-500' : 'bg-gray-700 hover:bg-gray-600'
                   }`}>
-                  <span className="text-slate-300 mr-1">{c.rank}</span>{c.name}
-                  {idx === 0 && <span className="ml-1 text-[9px]">REAL</span>}
+                  <span className="text-slate-300 mr-1">{c.rank}</span>{t.character(c.name)}
+                  {idx === 0 && <span className="ml-1 text-[9px]">{t('power.real')}</span>}
                 </button>
               );
             })}
@@ -349,7 +352,7 @@ function BlackmailerAction({ view, onAction }: PowerActionsProps) {
           <button disabled={picked.length !== 2}
             onClick={() => { onAction({ type: 'BLACKMAIL_ASSIGN', realRank: picked[0], bluffRank: picked[1] }); close(); }}
             className={`${CHIP} bg-amber-600 hover:bg-amber-500`}>
-            Place threats ({picked.length}/2)
+            {t('power.placeThreats', { count: picked.length })}
           </button>
         </>
       )}
@@ -366,29 +369,29 @@ const DISTRICT_TYPES: { type: DistrictType; label: string; tone: string }[] = [
 ];
 
 function SpyAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const [target, setTarget] = useState<string | null>(null);
   const opponents = view.players.filter((_, i) => i !== view.myIndex);
 
   return (
-    <PowerPanel label="Spy…" tone="bg-gray-700 hover:bg-gray-600"
-      title="Name a district type and look at a hand"
-      hint="Take 1 gold from them and draw 1 card for every card of that type in their hand.">
+    <PowerPanel label={t('power.spy')} tone="bg-gray-700 hover:bg-gray-600"
+      title={t('power.spyTitle')} hint={t('power.spyHint')}>
       {close => (
         <>
           <div className="flex flex-wrap gap-1">
             {opponents.map(p => (
               <button key={p.id} onClick={() => setTarget(p.id)}
                 className={`${CHIP} ${target === p.id ? 'bg-cyan-700' : 'bg-slate-600 hover:bg-slate-500'}`}>
-                {p.name} ({p.handSize}c, {p.gold}g)
+                {p.name} ({p.handSize} / {p.gold})
               </button>
             ))}
           </div>
           {target && (
             <div className="flex flex-wrap gap-1">
-              {DISTRICT_TYPES.map(t => (
-                <button key={t.type} className={`${CHIP} ${t.tone}`}
-                  onClick={() => { onAction({ type: 'SPY_SPY', targetPlayerId: target, districtType: t.type }); close(); }}>
-                  {t.label}
+              {DISTRICT_TYPES.map(dt => (
+                <button key={dt.type} className={`${CHIP} ${dt.tone}`}
+                  onClick={() => { onAction({ type: 'SPY_SPY', targetPlayerId: target, districtType: dt.type }); close(); }}>
+                  {t.districtType(dt.type)}
                 </button>
               ))}
             </div>
@@ -400,36 +403,37 @@ function SpyAction({ view, onAction }: PowerActionsProps) {
 }
 
 function MagicianAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
 
   return (
-    <PowerPanel label="Use Magic…" tone="bg-indigo-700 hover:bg-indigo-600" title="Magician power">
+    <PowerPanel label={t('power.magic')} tone="bg-indigo-700 hover:bg-indigo-600" title={t('power.magicTitle')}>
       {close => (
         <>
           <div className="flex flex-wrap gap-1">
             {view.players.filter((_, i) => i !== view.myIndex).map(p => (
               <button key={p.id} className={`${CHIP} bg-indigo-700 hover:bg-indigo-600`}
                 onClick={() => { onAction({ type: 'MAGICIAN_SWAP_PLAYER', targetPlayerId: p.id }); close(); }}>
-                Swap with {p.name} ({p.handSize} cards)
+                {t('power.swapWith', { player: p.name, count: p.handSize })}
               </button>
             ))}
           </div>
           {view.myHand.length > 0 && (
             <div>
-              <p className="text-[10px] text-slate-500 mb-1">Or discard cards to draw replacements:</p>
+              <p className="text-[10px] text-slate-500 mb-1">{t('power.orDiscard')}</p>
               <div className="flex flex-wrap gap-1 mb-2">
                 {view.myHand.map((card, i) => (
                   <button key={i}
                     onClick={() => setSelectedCards(p => p.includes(i) ? p.filter(x => x !== i) : [...p, i])}
                     className={`${CHIP} ${selectedCards.includes(i) ? 'bg-red-600' : 'bg-slate-600 hover:bg-slate-500'}`}>
-                    {card.name}
+                    {t.district(card.name)}
                   </button>
                 ))}
               </div>
               {selectedCards.length > 0 && (
                 <button className={`${CHIP} bg-indigo-600 hover:bg-indigo-500`}
                   onClick={() => { onAction({ type: 'MAGICIAN_SWAP_DECK', cardIndices: selectedCards }); close(); }}>
-                  Discard {selectedCards.length} &amp; Draw
+                  {t('power.discardAndDraw', { count: selectedCards.length })}
                 </button>
               )}
             </div>
@@ -441,21 +445,21 @@ function MagicianAction({ view, onAction }: PowerActionsProps) {
 }
 
 function WizardAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const myGold = view.players[view.myIndex]?.gold ?? 0;
   const myCity = view.players[view.myIndex]?.city ?? [];
 
   return (
-    <PowerPanel label="Look at a hand…" tone="bg-indigo-700 hover:bg-indigo-600"
-      title="Take one card from another player"
-      hint="Keep it, or build it straight away without using up your building limit.">
+    <PowerPanel label={t('power.lookAtHand')} tone="bg-indigo-700 hover:bg-indigo-600"
+      title={t('power.wizardTitle')} hint={t('power.wizardHint')}>
       {close => (
         <div className="space-y-2 max-h-56 overflow-y-auto">
           {view.revealedHands.length === 0 && (
-            <p className="text-[10px] text-slate-500">Nobody has any cards to take.</p>
+            <p className="text-[10px] text-slate-500">{t('power.nobodyHasCards')}</p>
           )}
           {view.revealedHands.map(hand => (
             <div key={hand.playerId}>
-              <p className="text-[10px] text-slate-400 mb-1">{hand.playerName}&apos;s hand:</p>
+              <p className="text-[10px] text-slate-400 mb-1">{t('power.citySuffix', { player: hand.playerName })}</p>
               <div className="flex flex-wrap gap-1">
                 {hand.cards.map((card, i) => {
                   const canBuild = card.cost <= myGold;
@@ -463,17 +467,17 @@ function WizardAction({ view, onAction }: PowerActionsProps) {
                     <div key={i} className="flex flex-col gap-0.5">
                       <button className={`${CHIP} bg-slate-600 hover:bg-slate-500`}
                         onClick={() => { onAction({ type: 'WIZARD_TAKE', targetPlayerId: hand.playerId, cardIndex: i, build: false }); close(); }}>
-                        {card.name} ({card.cost}g)
+                        {t.district(card.name)} ({card.cost})
                       </button>
                       <button disabled={!canBuild}
                         className={`${CHIP} bg-cyan-700 hover:bg-cyan-600 text-[10px]`}
                         onClick={() => { onAction({ type: 'WIZARD_TAKE', targetPlayerId: hand.playerId, cardIndex: i, build: true }); close(); }}>
-                        Build it
+                        {t('power.buildIt')}
                       </button>
                     </div>
                   );
                 })}
-                {hand.cards.length === 0 && <span className="text-[10px] text-slate-600 italic">empty</span>}
+                {hand.cards.length === 0 && <span className="text-[10px] text-slate-600 italic">{t('power.emptyHand')}</span>}
               </div>
             </div>
           ))}
@@ -484,21 +488,21 @@ function WizardAction({ view, onAction }: PowerActionsProps) {
 }
 
 function EmperorAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const [target, setTarget] = useState<string | null>(null);
   const opponents = view.players.filter((_, i) => i !== view.myIndex);
   const chosen = opponents.find(p => p.id === target);
 
   return (
-    <PowerPanel label="Give the Crown…" tone="bg-yellow-700 hover:bg-yellow-600"
-      title="Crown another player and take a resource"
-      hint="You must do this before ending your turn.">
+    <PowerPanel label={t('power.giveCrown')} tone="bg-yellow-700 hover:bg-yellow-600"
+      title={t('power.emperorTitle')} hint={t('power.emperorHint')}>
       {close => (
         <>
           <div className="flex flex-wrap gap-1">
             {opponents.map(p => (
               <button key={p.id} onClick={() => setTarget(p.id)}
                 className={`${CHIP} ${target === p.id ? 'bg-yellow-600' : 'bg-slate-600 hover:bg-slate-500'}`}>
-                {p.name} ({p.gold}g, {p.handSize}c)
+                {p.name} ({p.gold} / {p.handSize})
               </button>
             ))}
           </div>
@@ -506,11 +510,11 @@ function EmperorAction({ view, onAction }: PowerActionsProps) {
             <div className="flex gap-1">
               <button disabled={chosen.gold < 1} className={`${CHIP} bg-yellow-700 hover:bg-yellow-600`}
                 onClick={() => { onAction({ type: 'EMPEROR_CROWN', targetPlayerId: chosen.id, take: 'gold' }); close(); }}>
-                Take 1 gold
+                {t('power.takeGold1')}
               </button>
               <button disabled={chosen.handSize < 1} className={`${CHIP} bg-emerald-700 hover:bg-emerald-600`}
                 onClick={() => { onAction({ type: 'EMPEROR_CROWN', targetPlayerId: chosen.id, take: 'card' }); close(); }}>
-                Take 1 card
+                {t('power.takeCard1')}
               </button>
             </div>
           )}
@@ -521,14 +525,14 @@ function EmperorAction({ view, onAction }: PowerActionsProps) {
 }
 
 function AbbotAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const me = view.players[view.myIndex];
   const total = (me?.city ?? []).filter(d => d.type === 'religious' || d.name === 'School of Magic').length;
   const [gold, setGold] = useState(total);
 
   return (
-    <PowerPanel label={`Take income (${total})`} tone="bg-amber-600 hover:bg-amber-500"
-      title="Split your income between gold and cards"
-      hint="The richest player also owes you 1 gold if it is not you.">
+    <PowerPanel label={t('power.abbotIncome', { count: total })} tone="bg-amber-600 hover:bg-amber-500"
+      title={t('power.abbotTitle')} hint={t('power.abbotHint')}>
       {close => (
         <>
           <div className="flex flex-wrap gap-1">
@@ -541,7 +545,7 @@ function AbbotAction({ view, onAction }: PowerActionsProps) {
           </div>
           <button className={`${CHIP} bg-amber-600 hover:bg-amber-500`}
             onClick={() => { onAction({ type: 'ABBOT_INCOME', goldCount: gold, cardCount: total - gold }); close(); }}>
-            Take {gold} gold and {total - gold} cards
+            {t('power.abbotTake', { gold, cards: total - gold })}
           </button>
         </>
       )}
@@ -550,6 +554,7 @@ function AbbotAction({ view, onAction }: PowerActionsProps) {
 }
 
 function CardinalAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const me = view.players[view.myIndex];
   const myGold = me?.gold ?? 0;
   const [cardIndex, setCardIndex] = useState<number | null>(null);
@@ -564,16 +569,15 @@ function CardinalAction({ view, onAction }: PowerActionsProps) {
   const chosen = options.find(o => o.index === cardIndex);
 
   return (
-    <PowerPanel label="Buy gold with cards…" tone="bg-blue-800 hover:bg-blue-700"
-      title="Take the gold you are missing from another player"
-      hint="You give them one card from your hand for each gold you take, then build.">
+    <PowerPanel label={t('power.cardinal')} tone="bg-blue-800 hover:bg-blue-700"
+      title={t('power.cardinalTitle')} hint={t('power.cardinalHint')}>
       {close => (
         <>
           <div className="flex flex-wrap gap-1">
             {options.map(o => (
               <button key={o.index} onClick={() => setCardIndex(o.index)}
                 className={`${CHIP} ${cardIndex === o.index ? 'bg-blue-700' : 'bg-slate-600 hover:bg-slate-500'}`}>
-                {o.card.name} ({o.card.cost}g) — need {o.shortfall}
+                {t('power.cardinalNeed', { district: o.card.name, cost: o.card.cost, shortfall: o.shortfall })}
               </button>
             ))}
           </div>
@@ -583,7 +587,7 @@ function CardinalAction({ view, onAction }: PowerActionsProps) {
                 <button key={p.id} disabled={p.gold < chosen.shortfall}
                   className={`${CHIP} bg-blue-700 hover:bg-blue-600`}
                   onClick={() => { onAction({ type: 'CARDINAL_BUILD', cardIndex: chosen.index, lenderPlayerId: p.id }); close(); }}>
-                  Take {chosen.shortfall}g from {p.name} ({p.gold}g)
+                  {t('power.cardinalTake', { amount: chosen.shortfall, player: p.name, gold: p.gold })}
                 </button>
               ))}
             </div>
@@ -595,20 +599,21 @@ function CardinalAction({ view, onAction }: PowerActionsProps) {
 }
 
 function WarlordAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const myGold = view.players[view.myIndex]?.gold ?? 0;
   const targets = view.players.filter(p =>
     p.revealedCharacter?.name !== 'Bishop' && p.city.length < 8 && p.city.length > 0
   );
 
   return (
-    <PowerPanel label="Destroy District…" tone="bg-red-700 hover:bg-red-600" title="Destroy a district">
+    <PowerPanel label={t('power.destroy')} tone="bg-red-700 hover:bg-red-600" title={t('power.destroyTitle')}>
       {close => (
         <div className="space-y-1.5 max-h-56 overflow-y-auto">
           {targets.map(p => {
             const greatWall = p.city.some(d => d.name === 'Great Wall');
             return (
               <div key={p.id}>
-                <p className="text-[10px] text-slate-400">{p.name}&apos;s city:</p>
+                <p className="text-[10px] text-slate-400">{t('power.citySuffix', { player: p.name })}</p>
                 <div className="flex flex-wrap gap-1">
                   {p.city.map((d, i) => {
                     const cost = Math.max(0, districtValue(d) - 1 + (greatWall && d.name !== 'Great Wall' ? 1 : 0));
@@ -616,7 +621,7 @@ function WarlordAction({ view, onAction }: PowerActionsProps) {
                     return (
                       <button key={i} disabled={blocked} className={`${CHIP} bg-red-700 hover:bg-red-600`}
                         onClick={() => { onAction({ type: 'WARLORD_DESTROY', targetPlayerId: p.id, districtIndex: i }); close(); }}>
-                        {d.name} ({cost}g)
+                        {t.district(d.name)} ({cost})
                       </button>
                     );
                   })}
@@ -626,7 +631,7 @@ function WarlordAction({ view, onAction }: PowerActionsProps) {
           })}
           <button className={`${CHIP} bg-slate-600 hover:bg-slate-500`}
             onClick={() => { onAction({ type: 'WARLORD_PASS' }); close(); }}>
-            Don&apos;t Destroy
+            {t('power.dontDestroy')}
           </button>
         </div>
       )}
@@ -635,6 +640,7 @@ function WarlordAction({ view, onAction }: PowerActionsProps) {
 }
 
 function MarshalAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const myGold = view.players[view.myIndex]?.gold ?? 0;
   const myCity = view.players[view.myIndex]?.city ?? [];
   const targets = view.players.filter((p, i) =>
@@ -642,14 +648,13 @@ function MarshalAction({ view, onAction }: PowerActionsProps) {
   );
 
   return (
-    <PowerPanel label="Seize District…" tone="bg-red-700 hover:bg-red-600"
-      title="Seize a district costing 3 or less"
-      hint="You pay its owner the full building cost.">
+    <PowerPanel label={t('power.seize')} tone="bg-red-700 hover:bg-red-600"
+      title={t('power.seizeTitle')} hint={t('power.seizeHint')}>
       {close => (
         <div className="space-y-1.5 max-h-56 overflow-y-auto">
           {targets.map(p => (
             <div key={p.id}>
-              <p className="text-[10px] text-slate-400">{p.name}&apos;s city:</p>
+              <p className="text-[10px] text-slate-400">{t('power.citySuffix', { player: p.name })}</p>
               <div className="flex flex-wrap gap-1">
                 {p.city.map((d, i) => {
                   const price = districtValue(d);
@@ -658,7 +663,7 @@ function MarshalAction({ view, onAction }: PowerActionsProps) {
                   return (
                     <button key={i} disabled={blocked} className={`${CHIP} bg-red-700 hover:bg-red-600`}
                       onClick={() => { onAction({ type: 'MARSHAL_SEIZE', targetPlayerId: p.id, districtIndex: i }); close(); }}>
-                      {d.name} (pay {price}g)
+                      {t('power.pay', { district: d.name, price })}
                     </button>
                   );
                 })}
@@ -672,6 +677,7 @@ function MarshalAction({ view, onAction }: PowerActionsProps) {
 }
 
 function DiplomatAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const me = view.players[view.myIndex];
   const myCity = me?.city ?? [];
   const myGold = me?.gold ?? 0;
@@ -682,17 +688,16 @@ function DiplomatAction({ view, onAction }: PowerActionsProps) {
   );
 
   return (
-    <PowerPanel label="Exchange District…" tone="bg-red-700 hover:bg-red-600"
-      title="Swap one of your districts for one of theirs"
-      hint="If theirs is worth more you pay the difference.">
+    <PowerPanel label={t('power.exchange')} tone="bg-red-700 hover:bg-red-600"
+      title={t('power.exchangeTitle')} hint={t('power.exchangeHint')}>
       {close => (
         <>
-          <p className="text-[10px] text-slate-500">Your district to give:</p>
+          <p className="text-[10px] text-slate-500">{t('power.districtToGive')}</p>
           <div className="flex flex-wrap gap-1">
             {myCity.map((d, i) => (
               <button key={i} disabled={d.name === 'Keep'} onClick={() => setMyIndex(i)}
                 className={`${CHIP} ${myIndex === i ? 'bg-cyan-700' : 'bg-slate-600 hover:bg-slate-500'}`}>
-                {d.name} ({districtValue(d)})
+                {t.district(d.name)} ({districtValue(d)})
               </button>
             ))}
           </div>
@@ -703,7 +708,7 @@ function DiplomatAction({ view, onAction }: PowerActionsProps) {
                 const greatWall = p.city.some(d => d.name === 'Great Wall');
                 return (
                   <div key={p.id}>
-                    <p className="text-[10px] text-slate-400">{p.name}&apos;s city:</p>
+                    <p className="text-[10px] text-slate-400">{t('power.citySuffix', { player: p.name })}</p>
                     <div className="flex flex-wrap gap-1">
                       {p.city.map((d, i) => {
                         const theirValue = districtValue(d) + (greatWall && d.name !== 'Great Wall' ? 1 : 0);
@@ -716,7 +721,7 @@ function DiplomatAction({ view, onAction }: PowerActionsProps) {
                               onAction({ type: 'DIPLOMAT_EXCHANGE', targetPlayerId: p.id, theirDistrictIndex: i, myDistrictIndex: myIndex });
                               close();
                             }}>
-                            {d.name}{difference > 0 ? ` (+${difference}g)` : ''}
+                            {t.district(d.name)}{difference > 0 ? ` (+${difference})` : ''}
                           </button>
                         );
                       })}
@@ -733,19 +738,19 @@ function DiplomatAction({ view, onAction }: PowerActionsProps) {
 }
 
 function ArtistAction({ view, onAction }: PowerActionsProps) {
+  const t = useT();
   const myCity = view.players[view.myIndex]?.city ?? [];
   const left = 2 - (view.turnState?.beautifiedCount ?? 0);
 
   return (
-    <PowerPanel label={`Beautify… (${left} left)`} tone="bg-pink-700 hover:bg-pink-600"
-      title="Beautify a district for 1 gold"
-      hint="It is permanently worth 1 more — and costs 1 more to destroy or take.">
+    <PowerPanel label={t('power.beautify', { count: left })} tone="bg-pink-700 hover:bg-pink-600"
+      title={t('power.beautifyTitle')} hint={t('power.beautifyHint')}>
       {close => (
         <div className="flex flex-wrap gap-1">
           {myCity.map((d, i) => (
             <button key={i} disabled={!!d.beautified} className={`${CHIP} bg-pink-700 hover:bg-pink-600`}
               onClick={() => { onAction({ type: 'ARTIST_BEAUTIFY', districtIndex: i }); close(); }}>
-              {d.name} {d.beautified ? '✦' : `(${d.cost})`}
+              {t.district(d.name)} {d.beautified ? '✦' : `(${d.cost})`}
             </button>
           ))}
         </div>

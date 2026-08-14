@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CHARACTER_SETS, getCharacterByName, ALL_CHARACTERS } from '@citadels/game-logic';
 import type { Character } from '@citadels/game-logic';
+import { useT } from '@/hooks/useI18n';
 
 interface CharacterSetPickerProps {
   value: string;
@@ -18,6 +19,7 @@ interface CharacterSetPickerProps {
 export function CharacterSetPicker({
   value, onChange, includeRank9, onIncludeRank9Change, playerCount, onDetail,
 }: CharacterSetPickerProps) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const selected = CHARACTER_SETS.find(s => s.id === value) ?? CHARACTER_SETS[0];
 
@@ -29,7 +31,7 @@ export function CharacterSetPicker({
 
   return (
     <div>
-      <label className="block text-sm text-slate-300 mb-1">Characters</label>
+      <label className="block text-sm text-slate-300 mb-1">{t('setup.characters')}</label>
 
       <div className="space-y-1.5">
         {CHARACTER_SETS.map(set => {
@@ -47,10 +49,10 @@ export function CharacterSetPicker({
               <div className="flex items-center gap-2">
                 <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isSelected ? 'bg-amber-400' : 'bg-slate-600'}`} />
                 <span className={`text-sm font-medium ${isSelected ? 'text-amber-200' : 'text-slate-300'}`}>
-                  {set.name}
+                  {t.set(set.id).name}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-0.5 pl-[18px] leading-snug">{set.blurb}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 pl-[18px] leading-snug">{t.set(set.id).blurb}</p>
             </button>
           );
         })}
@@ -62,7 +64,7 @@ export function CharacterSetPicker({
         className="mt-2 flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
       >
         <span>{expanded ? '▼' : '▶'}</span>
-        <span>{selected.isRandom ? 'Drawn when the game starts' : 'Show the cast'}</span>
+        <span>{selected.isRandom ? t('setup.randomCast') : t('setup.showCast')}</span>
       </button>
 
       <AnimatePresence>
@@ -83,8 +85,8 @@ export function CharacterSetPicker({
                     className="w-full flex gap-2 text-left group"
                   >
                     <span className="text-[10px] text-slate-600 font-mono w-3 shrink-0 pt-0.5">{char.rank}</span>
-                    <span className="text-[11px] text-amber-300/90 w-20 shrink-0 group-hover:text-amber-200">{char.name}</span>
-                    <span className="text-[10px] text-slate-500 leading-snug flex-1">{char.description}</span>
+                    <span className="text-[11px] text-amber-300/90 w-20 shrink-0 group-hover:text-amber-200">{t.character(char.name)}</span>
+                    <span className="text-[10px] text-slate-500 leading-snug flex-1">{t.characterShort(char.name)}</span>
                   </button>
                 );
               })}
@@ -114,15 +116,15 @@ export function CharacterSetPicker({
             </div>
             <div className="text-left min-w-0">
               <div className={`text-xs font-medium ${rank9Blocked ? 'text-slate-500' : 'text-slate-200'}`}>
-                Add the rank 9 character
-                {!selected.isRandom && rank9 && <span className="text-amber-400/80"> — {rank9.name}</span>}
+                {t('setup.addRank9')}
+                {!selected.isRandom && rank9 && <span className="text-amber-400/80"> — {t.character(rank9.name)}</span>}
               </div>
               <div className="text-[10px] text-slate-500 leading-snug">
                 {rank9Blocked
-                  ? 'The Queen needs 5 or more players.'
+                  ? t('setup.queenNeedsFive')
                   : selected.isRandom
-                    ? 'One of the Queen, Artist or Tax Collector, drawn at random.'
-                    : rank9?.description}
+                    ? t('setup.randomRank9')
+                    : rank9 ? t.characterShort(rank9.name) : ''}
               </div>
             </div>
           </button>

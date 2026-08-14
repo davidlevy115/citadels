@@ -85,6 +85,33 @@ describe('Preset sets play through', () => {
   }
 });
 
+describe('Removing characters', () => {
+  it('never discards the rank 4 character face up', () => {
+    // The old implementation reshuffled and redrew, which could hand back the
+    // rank 4 card it had just rejected. Run enough games to catch that.
+    for (const setId of ['classic', 'cunning-agents', 'vicious-nobles']) {
+      for (let players = 4; players <= 7; players++) {
+        for (let attempt = 0; attempt < 60; attempt++) {
+          const state = createGame(botConfig(players, setId));
+          expect(
+            state.removedCharactersFaceUp.some(c => c.rank === 4),
+            `${setId} with ${players} players discarded the rank 4 character face up`
+          ).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('still discards the right number of characters face up', () => {
+    for (let players = 4; players <= 7; players++) {
+      const expected = { 4: 2, 5: 1, 6: 0, 7: 0 }[players]!;
+      const state = createGame(botConfig(players, 'classic'));
+      expect(state.removedCharactersFaceUp).toHaveLength(expected);
+      expect(state.removedCharactersFaceDown).toHaveLength(1);
+    }
+  });
+});
+
 describe('Crown assignment by age', () => {
   it('gives the Crown to the oldest player', () => {
     const state = createGame({
@@ -264,7 +291,7 @@ describe('Deluxe powers', () => {
     state = processAction(state, { type: 'ARTIST_BEAUTIFY', playerId: me, districtIndex: 1 });
     expect(() =>
       processAction(state, { type: 'ARTIST_BEAUTIFY', playerId: me, districtIndex: 2 })
-    ).toThrow('at most 2');
+    ).toThrow('err.beautifyLimit');
     expect(state.players[0].city[0].beautified).toBe(true);
 
     // Beautified districts are worth an extra point at the end of the game.
@@ -333,7 +360,7 @@ describe('Deluxe powers', () => {
     // Fast-forward through everyone else with the bot driver.
     const { state: done, stuck } = playOut(s);
     expect(stuck).toBeNull();
-    expect(done.log.some(l => l.message.includes('resumes their turn as the'))).toBe(true);
+    expect(done.log.some(l => l.key === 'witch.resumes')).toBe(true);
   });
 
   it('the Witch cannot build on her own turn', () => {
@@ -346,7 +373,7 @@ describe('Deluxe powers', () => {
     expect(getAvailableActions(afterGather, me).canBuildDistrict).toBe(false);
     expect(() =>
       processAction(afterGather, { type: 'BUILD_DISTRICT', playerId: me, cardIndex: 0 })
-    ).toThrow('cannot build');
+    ).toThrow('err.cannotBuildThisTurn');
   });
 
   it('characters removed face up cannot be named by any power', () => {
@@ -360,14 +387,14 @@ describe('Deluxe powers', () => {
     const gathered = processAction(state, { type: 'TAKE_GOLD', playerId: me });
     expect(() =>
       processAction(gathered, { type: 'WITCH_BEWITCH', playerId: me, targetRank: 6 })
-    ).toThrow('removed face up');
+    ).toThrow('err.removedFaceUp');
 
     // ...and the same guard covers the other targeting powers.
     const assassinState = turnFor('tenacious-delegates', 'Assassin');
     assassinState.removedCharactersFaceUp = [assassinState.cast.find(c => c.rank === 6)!];
     expect(() =>
       processAction(assassinState, { type: 'ASSASSIN_KILL', playerId: assassinState.players[0].id, targetRank: 6 })
-    ).toThrow('removed face up');
+    ).toThrow('err.removedFaceUp');
   });
 
   it('says so plainly when nobody was playing the bewitched character', () => {
@@ -399,8 +426,7 @@ describe('Deluxe powers', () => {
 
     const { state: after, stuck } = playOut(state);
     expect(stuck).toBeNull();
-    expect(after.log.some(l => /Nobody was playing the .* does not resume their turn/.test(l.message)))
-      .toBe(true);
+    expect(after.log.some(l => l.key === 'witch.noResume')).toBe(true);
   });
 
   it('Magistrate confiscates the first district a warranted player pays for', () => {

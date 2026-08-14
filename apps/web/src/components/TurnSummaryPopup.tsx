@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { BotTurnSummary } from '@citadels/game-logic';
 import { getCharacterImagePath, CHARACTER_ICON } from '@/lib/cardImages';
+import { useT } from '@/hooks/useI18n';
 
 /** How long a recap stays up before closing itself. */
 const DISPLAY_MS = 10_000;
@@ -23,6 +24,7 @@ interface TurnSummaryPopupProps {
  * rather than something several turns ago.
  */
 export function TurnSummaryPopup({ summary, onDismiss }: TurnSummaryPopupProps) {
+  const t = useT();
   const [imgError, setImgError] = useState(false);
   const id = summary?.id ?? null;
 
@@ -67,14 +69,14 @@ export function TurnSummaryPopup({ summary, onDismiss }: TurnSummaryPopupProps) 
               <div className="min-w-0">
                 <div className="text-xs font-bold text-amber-100 truncate">{summary.playerName}</div>
                 <div className="text-[10px] text-amber-400/80 truncate">
-                  {summary.characterName} <span className="text-amber-700">#{summary.characterRank}</span>
+                  {t.character(summary.characterName)} <span className="text-amber-700">#{summary.characterRank}</span>
                 </div>
               </div>
 
               <button
                 onClick={() => onDismiss(summary.id)}
-                aria-label="Close"
-                title="Close and continue"
+                aria-label={t('recap.close')}
+                title={t('recap.closeTitle')}
                 className="pointer-events-auto ml-auto shrink-0 w-6 h-6 rounded-full bg-black/30 hover:bg-black/60 text-slate-400 hover:text-amber-200 flex items-center justify-center text-sm leading-none transition-colors"
               >
                 ×
@@ -91,7 +93,7 @@ export function TurnSummaryPopup({ summary, onDismiss }: TurnSummaryPopupProps) 
                   className="text-[11px] text-slate-300 leading-snug"
                 >
                   <span className="text-amber-700/80 mr-1">›</span>
-                  {action}
+                  {t.log(action)}
                 </motion.li>
               ))}
             </ul>

@@ -20,6 +20,11 @@ export type {
   BotTurnSummary,
 } from './types.js';
 
+export type { LogKey, LogParams, LogParamValue } from './log.js';
+export { TURN_START_KEYS, ROUND_FRAMING_KEYS } from './log.js';
+export type { ErrorCode } from './errors.js';
+export { GameError, isGameError } from './errors.js';
+
 export {
   createGame, processAction, getPlayerView, getAvailableActions,
   hasPendingDecision, pendingDecisionPlayerId, currentRoundEntries,

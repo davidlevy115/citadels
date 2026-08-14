@@ -23,6 +23,9 @@ pnpm --filter @citadels/web build          # Next.js static export → apps/web/
 
 # Run tests (game-logic only)
 pnpm test
+
+# Check that every string renders in every language with no unresolved {placeholders}
+pnpm check:i18n
 pnpm --filter @citadels/game-logic test
 
 # Run a single test file
@@ -61,6 +64,8 @@ Pure TypeScript state machine — zero UI/network dependencies, fully testable.
 
 **Special buildings** (Laboratory, Smithy, Graveyard, Observatory, Library) are handled in engine.ts with `specialBuildingsUsed: string[]` on `TurnState` to prevent double-use per turn.
 
+**Structured logs**: `state.log` holds `{ key, params }`, never a finished sentence — see `log.ts` for the `LogKey` union and the parameter naming contract. Rule violations throw `GameError` carrying an `ErrorCode` (`errors.ts`) rather than an English message. This is what lets the same game be read in any language, and it also means round events and turn boundaries match on keys instead of pattern-matching prose. **Never add a bare string to the log or an `Error` with prose** — add a key.
+
 **Targeting**: characters discarded face up are public and cannot be held by anyone, so `validateTargetRank()` rejects them for every naming power (Assassin, Witch, Magistrate, Thief, Blackmailer). Naming one used to silently waste the whole power — most painfully the Witch's, which loses her second turn. Bots filter the same way via `targetableRanks()` in `bot.ts`; the UI filters via `targetableRanks()` in `PowerActions.tsx`.
 
 **Deliberate simplifications**: the Seer's give-back cards are chosen automatically (cheapest first); Magistrate/Blackmailer markers are placed by naming ranks rather than dragging tokens.
@@ -91,6 +96,9 @@ Next.js 15 static export (`output: 'export'`). Builds to `apps/web/out/` which t
 - **`components/CharacterSetPicker.tsx`** — Preset cast chooser on the setup screen, with the rank 9 toggle.
 - **`components/TurnSummaryPopup.tsx`** — Recap of the turn that just finished. Closes after 10s or on the × button; either way it acks the server, which is what lets the game continue.
 - **`components/GameLog.tsx`** — Shows only the most recent round that has entries, newest line first.
+- **Dead code**: `PlayerInfo.tsx` and `City.tsx` are not imported anywhere and are not translated.
+- **`lib/i18n/`** — The translation catalogues. `types.ts` defines `Dictionary`, whose `Record<LogKey|ErrorCode|UiKey, …>` shape makes a missing translation a **compile error**. `index.ts` holds the formatter, which supplies article-aware variants of character and district parameters (`{character}` / `{characterEl}` / `{characterA}` / `{characterDe}`) so Spanish can say "la Bruja" but "al Rey"; each language's template picks the form it needs. Add a language by writing one more file of the same shape.
+- **`hooks/useI18n.ts`** — `useT()` returns the translator; language is a client preference chosen on the setup screen and kept in `localStorage`. Because logs are structured, two players in one game can read it in different languages.
 - **`lib/socket.ts`** — Singleton Socket.io client. Connects to `NEXT_PUBLIC_SERVER_URL` env var or same origin (production) / port 3001 (dev).
 
 ### TypeScript Setup

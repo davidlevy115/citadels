@@ -1,4 +1,5 @@
 import type { GameState } from './types.js';
+import type { LogKey, LogParams } from './log.js';
 
 // Fisher-Yates shuffle (in-place, returns same array)
 export function shuffle<T>(array: T[]): T[] {
@@ -21,7 +22,11 @@ export function cloneState<T>(obj: T): T {
  *  server slices it per turn, so trimming here would lose information. */
 const MAX_LOG_ENTRIES = 2000;
 
-export function addLog(state: GameState, message: string): void {
-  state.log.push({ message, timestamp: Date.now() });
+/**
+ * Record an event as a key plus parameters. Nothing here is a finished
+ * sentence: the client turns these into text in the reader's own language.
+ */
+export function addLog(state: GameState, key: LogKey, params?: LogParams): void {
+  state.log.push({ key, ...(params ? { params } : {}), timestamp: Date.now() });
   if (state.log.length > MAX_LOG_ENTRIES) state.log.shift();
 }

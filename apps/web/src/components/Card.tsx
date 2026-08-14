@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { DistrictCard, Character } from '@citadels/game-logic';
 import { getDistrictImagePath, getCharacterImagePath, DISTRICT_TYPE_ICON, CHARACTER_ICON, rankTheme } from '@/lib/cardImages';
+import { useT } from '@/hooks/useI18n';
 
 const TYPE_BORDER: Record<string, string> = {
   noble: 'border-yellow-500',
@@ -29,14 +30,6 @@ const TYPE_TEXT: Record<string, string> = {
   special: 'text-purple-300',
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  noble: 'Noble',
-  religious: 'Religious',
-  trade: 'Trade',
-  military: 'Military',
-  special: 'Special',
-};
-
 // ── District Card ───────────────────────────────────────────────
 
 interface DistrictCardProps {
@@ -50,7 +43,11 @@ interface DistrictCardProps {
 }
 
 export function DistrictCardView({ card, onClick, onDetail, selected, disabled, small, buildable }: DistrictCardProps) {
+  const t = useT();
   const [imgError, setImgError] = useState(false);
+  const typeLabel = t.districtType(card.type);
+  const displayName = t.district(card.name);
+  const description = t.districtDescription(card.name);
   const border = TYPE_BORDER[card.type] || TYPE_BORDER.special;
   const bg = TYPE_BG[card.type] || TYPE_BG.special;
   const textColor = TYPE_TEXT[card.type] || TYPE_TEXT.special;
@@ -115,7 +112,7 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
 
         {/* Beautified by the Artist — worth 1 more */}
         {card.beautified && (
-          <div title="Beautified: worth 1 more point"
+          <div title={t('power.beautifiedMark')}
             className="absolute bottom-4 left-1 w-4 h-4 bg-pink-500 text-white rounded-full flex items-center justify-center text-[8px] shadow">
             ✿
           </div>
@@ -147,7 +144,7 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
         {/* Name */}
         <div className="absolute bottom-0 inset-x-0 px-1 pb-1.5">
           <div className="text-[9px] font-semibold text-white leading-tight text-center drop-shadow">
-            {card.name}
+            {displayName}
           </div>
         </div>
       </motion.div>
@@ -194,7 +191,7 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
 
       {/* Beautified by the Artist — worth 1 more */}
       {card.beautified && (
-        <div title="Beautified: worth 1 more point"
+        <div title={t('power.beautifiedMark')}
           className="absolute top-10 left-2 w-6 h-6 bg-pink-500 text-white rounded-full flex items-center justify-center text-[11px] shadow-lg">
           ✿
         </div>
@@ -212,7 +209,7 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
 
       {/* Type badge */}
       <div className={`absolute top-10 right-2 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-black/50 backdrop-blur-sm ${textColor}`}>
-        {icon} {TYPE_LABELS[card.type]}
+        {icon} {typeLabel}
       </div>
 
       {/* Build badge */}
@@ -226,15 +223,14 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
 
       {/* Bottom content */}
       <div className="absolute bottom-0 inset-x-0 p-2.5">
-        <div className="text-xs font-bold text-white drop-shadow mb-0.5">{card.name}</div>
-        {card.description && (
+        <div className="text-xs font-bold text-white drop-shadow mb-0.5">{displayName}</div>
+        {description ? (
           <div className="text-[8px] text-slate-300 leading-tight line-clamp-3 drop-shadow">
-            {card.description}
+            {description}
           </div>
-        )}
-        {!card.description && (
+        ) : (
           <div className={`text-[8px] ${textColor} opacity-70`}>
-            {TYPE_LABELS[card.type]} &middot; {card.cost} pts
+            {typeLabel} &middot; {card.cost}
           </div>
         )}
       </div>
@@ -254,6 +250,7 @@ interface CharacterCardProps {
 }
 
 export function CharacterCardView({ character, onClick, onDetail, selected, disabled, small }: CharacterCardProps) {
+  const t = useT();
   const [imgError, setImgError] = useState(false);
   const theme = rankTheme(character.rank);
   const border = theme.border;
@@ -300,7 +297,7 @@ export function CharacterCardView({ character, onClick, onDetail, selected, disa
           {character.rank}
         </div>
         <div className="absolute bottom-0 inset-x-0 px-1 pb-1.5">
-          <div className="text-[9px] font-bold text-white text-center drop-shadow">{character.name}</div>
+          <div className="text-[9px] font-bold text-white text-center drop-shadow">{t.character(character.name)}</div>
         </div>
       </motion.div>
     );
@@ -342,9 +339,9 @@ export function CharacterCardView({ character, onClick, onDetail, selected, disa
 
       {/* Bottom content */}
       <div className="absolute bottom-0 inset-x-0 p-2.5">
-        <div className="text-sm font-bold text-white drop-shadow mb-0.5">{character.name}</div>
+        <div className="text-sm font-bold text-white drop-shadow mb-0.5">{t.character(character.name)}</div>
         <div className="text-[8px] text-slate-300 leading-tight line-clamp-3 drop-shadow">
-          {character.description}
+          {t.characterShort(character.name)}
         </div>
       </div>
     </motion.div>

@@ -2,6 +2,8 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import type { RoundEvent, Character } from '@citadels/game-logic';
+import { useT } from '@/hooks/useI18n';
+import type { Translator } from '@/lib/i18n';
 
 interface RoundEventsProps {
   events: RoundEvent[];
@@ -25,31 +27,33 @@ const EVENT_STYLES: Record<RoundEvent['type'], { icon: string; color: string; bg
   spy:        { icon: '\u25c9', color: 'text-cyan-300',   bg: 'bg-cyan-950/60',   border: 'border-cyan-800' },
 };
 
-function formatEvent(event: RoundEvent): string {
+/** Every event reads from the catalogue, so the feed follows the reader's language. */
+function formatEvent(t: Translator, event: RoundEvent): string {
+  const { actorName: player, targetPlayerName: target, targetCharacter: character, detail, detail2 } = event;
+
   switch (event.type) {
     case 'murder':
-      return `${event.actorName} (Assassin) killed the ${event.targetCharacter}!`;
-    case 'steal': {
-      const victim = event.targetPlayerName ? ` \u2014 stole from ${event.targetPlayerName}` : '';
-      const detail = event.detail ? ` (${event.detail})` : '';
-      return `${event.actorName} (Thief) targets the ${event.targetCharacter}${victim}${detail}`;
-    }
+      return t('event.murder', { player, character: character ?? '' });
+    case 'steal':
+      return target
+        ? t('event.stealResolved', { player, character: character ?? '', amount: detail ?? '', target })
+        : t('event.steal', { player, character: character ?? '' });
     case 'swap':
-      return `${event.actorName} (Magician) swapped hands with ${event.targetPlayerName}`;
+      return t('event.swap', { player, target: target ?? '' });
     case 'destroy':
-      return `${event.actorName} (Warlord) destroyed ${event.detail} in ${event.targetPlayerName}'s city`;
+      return t('event.destroy', { player, district: detail ?? '', target: target ?? '' });
     case 'bewitch':
-      return `${event.actorName} (Witch) bewitched the ${event.targetCharacter}`;
+      return t('event.bewitch', { player, character: character ?? '' });
     case 'confiscate':
-      return `${event.actorName} (Magistrate) confiscated ${event.detail} from ${event.targetPlayerName}`;
+      return t('event.confiscate', { player, district: detail ?? '', target: target ?? '' });
     case 'blackmail':
-      return `${event.actorName} (Blackmailer) took ${event.detail} from ${event.targetPlayerName}`;
+      return t('event.blackmail', { player, amount: detail ?? '', target: target ?? '' });
     case 'seize':
-      return `${event.actorName} (Marshal) seized ${event.detail} from ${event.targetPlayerName}`;
+      return t('event.seize', { player, district: detail ?? '', target: target ?? '' });
     case 'exchange':
-      return `${event.actorName} (Diplomat) swapped ${event.detail} with ${event.targetPlayerName}`;
+      return t('event.exchange', { player, district: detail ?? '', district2: detail2 ?? '', target: target ?? '' });
     case 'spy':
-      return `${event.actorName} (Spy) looked through ${event.targetPlayerName}'s hand`;
+      return t('event.spy', { player, target: target ?? '' });
     default:
       return '';
   }
@@ -58,6 +62,7 @@ function formatEvent(event: RoundEvent): string {
 export function RoundEvents({
   events, murderedCharacter, robbedCharacter, bewitchedCharacter, myCharacter, cast,
 }: RoundEventsProps) {
+  const t = useT();
   const myRank = myCharacter?.rank;
   const iMurdered = myRank != null && murderedCharacter === myRank;
   const iRobbed = myRank != null && robbedCharacter === myRank;
@@ -77,8 +82,8 @@ export function RoundEvents({
             className="bg-red-900/80 border-2 border-red-500 rounded-xl px-4 py-3 text-center shadow-lg shadow-red-500/20"
           >
             <div className="text-2xl mb-1">{'\u2620'}</div>
-            <div className="text-red-200 font-bold text-sm">You have been murdered!</div>
-            <div className="text-red-400 text-xs mt-1">Your turn as {myCharacter?.name} is skipped this round.</div>
+            <div className="text-red-200 font-bold text-sm">{t('event.youMurderedTitle')}</div>
+            <div className="text-red-400 text-xs mt-1">{t('event.youMurderedBody', { character: myCharacter?.name ?? '' })}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -93,8 +98,8 @@ export function RoundEvents({
             className="bg-amber-900/80 border-2 border-amber-500 rounded-xl px-4 py-3 text-center shadow-lg shadow-amber-500/20"
           >
             <div className="text-2xl mb-1">{'\u2666'}</div>
-            <div className="text-amber-200 font-bold text-sm">You are being robbed!</div>
-            <div className="text-amber-400 text-xs mt-1">The Thief will steal all your gold when your turn starts.</div>
+            <div className="text-amber-200 font-bold text-sm">{t('event.youRobbedTitle')}</div>
+            <div className="text-amber-400 text-xs mt-1">{t('event.youRobbedBody')}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -109,9 +114,9 @@ export function RoundEvents({
             className="bg-purple-900/80 border-2 border-purple-500 rounded-xl px-4 py-3 text-center shadow-lg shadow-purple-500/20"
           >
             <div className="text-2xl mb-1">⚘</div>
-            <div className="text-purple-200 font-bold text-sm">You have been bewitched!</div>
+            <div className="text-purple-200 font-bold text-sm">{t('event.youBewitchedTitle')}</div>
             <div className="text-purple-300 text-xs mt-1">
-              You may only gather resources. The Witch then plays your {myCharacter?.name}&apos;s turn.
+              {t('event.youBewitchedBody', { character: myCharacter?.name ?? '' })}
             </div>
           </motion.div>
         )}
@@ -143,7 +148,7 @@ export function RoundEvents({
                 `}
               >
                 <span className="text-base">{style.icon}</span>
-                <span className={style.color}>{formatEvent(event)}</span>
+                <span className={style.color}>{formatEvent(t, event)}</span>
               </motion.div>
             );
           })}

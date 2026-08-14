@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Character } from '@citadels/game-logic';
 import { useSocket } from '@/hooks/useSocket';
 import { useGameStore } from '@/hooks/useGameState';
+import { useT, useLocaleStore, useRestoreLocale } from '@/hooks/useI18n';
+import { LOCALES } from '@/lib/i18n';
 import { GameBoard } from '@/components/GameBoard';
 import { CharacterSetPicker } from '@/components/CharacterSetPicker';
 import { CharacterDetailModal } from '@/components/CardDetailModal';
@@ -14,6 +16,10 @@ export default function Home() {
     createGame, createMultiplayerRoom, joinRoom, sendAction, loadGame, listSaves, ackTurnSummary,
   } = useSocket();
   const { roomId, playerId, gameView, lobbyState, error, actionError, savedGames } = useGameStore();
+
+  useRestoreLocale();
+  const t = useT();
+  const { locale, setLocale } = useLocaleStore();
 
   const [playerName, setPlayerName] = useState('');
   const [playerAge, setPlayerAge] = useState('');
@@ -55,19 +61,19 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 max-w-md w-full border border-slate-600 shadow-2xl text-center"
         >
-          <h1 className="text-3xl font-bold text-amber-400 mb-2">Citadels</h1>
-          <p className="text-slate-400 text-sm mb-6">Waiting for players to join...</p>
+          <h1 className="text-3xl font-bold text-amber-400 mb-2">{t('app.title')}</h1>
+          <p className="text-slate-400 text-sm mb-6">{t('lobby.waiting')}</p>
 
           <div className="bg-slate-900/60 rounded-xl p-5 mb-6">
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Share this room code</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">{t('lobby.shareCode')}</p>
             <button
               onClick={() => navigator.clipboard.writeText(lobbyState.roomId)}
               className="text-4xl font-bold text-amber-400 tracking-[0.3em] hover:text-amber-300 transition-colors"
-              title="Click to copy"
+              title={t('lobby.clickToCopy')}
             >
               {lobbyState.roomId}
             </button>
-            <p className="text-xs text-slate-500 mt-2">Click to copy</p>
+            <p className="text-xs text-slate-500 mt-2">{t('lobby.clickToCopy')}</p>
           </div>
 
           <div className="space-y-2 mb-6">
@@ -84,7 +90,7 @@ export default function Home() {
                 >
                   <div className={`w-3 h-3 rounded-full ${name ? 'bg-green-400' : 'bg-slate-600 animate-pulse'}`} />
                   <span className={`text-sm ${name ? 'text-green-300 font-medium' : 'text-slate-500 italic'}`}>
-                    {name || 'Waiting for player...'}
+                    {name || t('lobby.waitingForPlayer')}
                   </span>
                 </div>
               );
@@ -92,9 +98,9 @@ export default function Home() {
           </div>
 
           <p className="text-xs text-slate-500">
-            {lobbyState.joined.length} / {lobbyState.totalHumansNeeded} players joined
+            {t('lobby.playersJoined', { joined: lobbyState.joined.length, total: lobbyState.totalHumansNeeded })}
           </p>
-          <p className="text-[11px] text-slate-600 mt-1">The oldest player will take the Crown.</p>
+          <p className="text-[11px] text-slate-600 mt-1">{t('lobby.oldestWillStart')}</p>
 
           <motion.div
             className="mt-4 flex justify-center gap-1.5"
@@ -143,26 +149,45 @@ export default function Home() {
         className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 max-w-md w-full border border-slate-600 shadow-2xl"
       >
         {/* Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-amber-400 mb-2">Citadels</h1>
-          <p className="text-slate-400 text-sm">Build the most prosperous city in the realm</p>
+        <div className="text-center mb-6">
+          <h1 className="text-4xl font-bold text-amber-400 mb-2">{t('app.title')}</h1>
+          <p className="text-slate-400 text-sm">{t('app.tagline')}</p>
+        </div>
+
+        {/* Language — applies immediately and is remembered for the next game */}
+        <div className="mb-6">
+          <label className="block text-sm text-slate-300 mb-1">{t('setup.language')}</label>
+          <div className="flex gap-2">
+            {LOCALES.map(option => (
+              <button
+                key={option.id}
+                onClick={() => setLocale(option.id)}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  locale === option.id ? 'bg-amber-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                }`}
+              >
+                <span aria-hidden>{option.flag}</span>
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Player identity */}
-        <div className="mb-6 flex gap-3">
+        <div className="mb-2 flex gap-3">
           <div className="flex-1">
-            <label className="block text-sm text-slate-300 mb-1">Your Name</label>
+            <label className="block text-sm text-slate-300 mb-1">{t('setup.yourName')}</label>
             <input
               type="text"
               value={playerName}
               onChange={e => setPlayerName(e.target.value)}
               onBlur={savePlayer}
-              placeholder="Enter your name"
+              placeholder={t('setup.namePlaceholder')}
               className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
           <div className="w-24">
-            <label className="block text-sm text-slate-300 mb-1">Age</label>
+            <label className="block text-sm text-slate-300 mb-1">{t('setup.age')}</label>
             <input
               type="number"
               inputMode="numeric"
@@ -171,22 +196,20 @@ export default function Home() {
               value={playerAge}
               onChange={e => setPlayerAge(e.target.value)}
               onBlur={savePlayer}
-              placeholder="—"
+              placeholder={t('setup.agePlaceholder')}
               className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-center focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
         </div>
-        <p className="-mt-4 mb-6 text-[11px] text-slate-500">
-          The oldest player receives the Crown and chooses their character first.
-        </p>
+        <p className="mb-6 text-[11px] text-slate-500">{t('setup.oldestStarts')}</p>
 
         {/* Tabs */}
         <div className="flex gap-1 mb-4 bg-slate-900/50 rounded-lg p-1">
           {([
-            ['single', 'Solo'],
-            ['multi', 'Host'],
-            ['join', 'Join'],
-            ['load', 'Load'],
+            ['single', t('setup.tabSolo')],
+            ['multi', t('setup.tabHost')],
+            ['join', t('setup.tabJoin')],
+            ['load', t('setup.tabLoad')],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -204,7 +227,7 @@ export default function Home() {
         {tab === 'single' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Number of Bots</label>
+              <label className="block text-sm text-slate-300 mb-1">{t('setup.numberOfBots')}</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5, 6].map(n => (
                   <button
@@ -218,7 +241,7 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-1">{botCount + 1} total players</p>
+              <p className="text-xs text-slate-500 mt-1">{t('setup.totalPlayers', { count: botCount + 1 })}</p>
             </div>
 
             <CharacterSetPicker
@@ -235,10 +258,10 @@ export default function Home() {
               disabled={!detailsReady}
               className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
             >
-              Start Game
+              {t('setup.startGame')}
             </button>
             {!detailsReady && (
-              <p className="text-[11px] text-slate-500 text-center">Enter your name and age to start.</p>
+              <p className="text-[11px] text-slate-500 text-center">{t('setup.needNameAndAge')}</p>
             )}
           </div>
         )}
@@ -246,7 +269,7 @@ export default function Home() {
         {tab === 'multi' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Human Players</label>
+              <label className="block text-sm text-slate-300 mb-1">{t('setup.humanPlayers')}</label>
               <div className="flex gap-2">
                 {[2, 3, 4, 5, 6, 7].map(n => (
                   <button
@@ -262,7 +285,7 @@ export default function Home() {
               </div>
             </div>
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Additional Bots</label>
+              <label className="block text-sm text-slate-300 mb-1">{t('setup.additionalBots')}</label>
               <div className="flex gap-2">
                 {Array.from({ length: Math.min(6, 8 - totalHumans) }, (_, i) => i).map(n => (
                   <button
@@ -276,7 +299,7 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-1">{totalHumans + multiBots} total players</p>
+              <p className="text-xs text-slate-500 mt-1">{t('setup.totalPlayers', { count: totalHumans + multiBots })}</p>
             </div>
 
             <CharacterSetPicker
@@ -293,7 +316,7 @@ export default function Home() {
               disabled={!detailsReady || totalHumans + multiBots < 2 || totalHumans + multiBots > 7}
               className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
             >
-              Create Room
+              {t('setup.createRoom')}
             </button>
           </div>
         )}
@@ -301,25 +324,23 @@ export default function Home() {
         {tab === 'join' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Room Code</label>
+              <label className="block text-sm text-slate-300 mb-1">{t('setup.roomCode')}</label>
               <input
                 type="text"
                 value={joinCode}
                 onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="Enter room code"
+                placeholder={t('setup.roomCodePlaceholder')}
                 className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase tracking-widest text-center text-lg"
                 maxLength={6}
               />
             </div>
-            <p className="text-[11px] text-slate-500">
-              The host picks the character set. Your age decides who starts.
-            </p>
+            <p className="text-[11px] text-slate-500">{t('setup.hostPicksSet')}</p>
             <button
               onClick={() => { savePlayer(); joinRoom(joinCode, playerName.trim() || 'Player', parsedAge); }}
               disabled={!detailsReady || joinCode.length < 4}
               className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
             >
-              Join Game
+              {t('setup.joinGame')}
             </button>
           </div>
         )}
@@ -327,7 +348,7 @@ export default function Home() {
         {tab === 'load' && (
           <div className="space-y-4">
             {savedGames.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-4">No saved games found</p>
+              <p className="text-sm text-slate-400 text-center py-4">{t('setup.noSavedGames')}</p>
             ) : (
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {savedGames.map(id => (
@@ -336,7 +357,7 @@ export default function Home() {
                     onClick={() => { savePlayer(); loadGame(id, playerName.trim() || 'Player'); }}
                     className="w-full px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-left text-sm transition-colors"
                   >
-                    Game {id}
+                    {t('setup.savedGame', { id })}
                   </button>
                 ))}
               </div>
@@ -347,9 +368,9 @@ export default function Home() {
         {/* Room code display */}
         {roomId && !gameView && (
           <div className="mt-4 p-4 bg-slate-900/50 rounded-lg text-center">
-            <p className="text-sm text-slate-400 mb-1">Room Code</p>
+            <p className="text-sm text-slate-400 mb-1">{t('setup.roomCode')}</p>
             <p className="text-2xl font-bold text-amber-400 tracking-widest">{roomId}</p>
-            <p className="text-xs text-slate-500 mt-1">Share this code with other players</p>
+            <p className="text-xs text-slate-500 mt-1">{t('lobby.shareCode')}</p>
           </div>
         )}
 
@@ -360,7 +381,7 @@ export default function Home() {
             animate={{ opacity: 1 }}
             className="mt-4 p-3 bg-red-900/30 border border-red-700 rounded-lg text-sm text-red-300"
           >
-            {error}
+            {t.error(error)}
           </motion.div>
         )}
       </motion.div>

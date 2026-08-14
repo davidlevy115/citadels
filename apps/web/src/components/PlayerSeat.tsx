@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { PlayerPublicInfo, BuiltDistrict, Character, LogEntry } from '@citadels/game-logic';
 import { DistrictCardView } from './Card';
 import { getCharacterImagePath, CHARACTER_ICON } from '@/lib/cardImages';
+import { useT } from '@/hooks/useI18n';
 
 interface PlayerSeatProps {
   player: PlayerPublicInfo;
@@ -13,7 +14,7 @@ interface PlayerSeatProps {
   isActive: boolean;
   isMurdered: boolean;
   isRobbed: boolean;
-  latestActions: string[];
+  latestActions: LogEntry[];
   onCharacterClick?: () => void;
   onDistrictClick?: (d: BuiltDistrict) => void;
 }
@@ -22,6 +23,7 @@ export function PlayerSeat({
   player, isMe, hasCrown, isActive, isMurdered, isRobbed, latestActions,
   onCharacterClick, onDistrictClick,
 }: PlayerSeatProps) {
+  const t = useT();
   const [charImgError, setCharImgError] = useState(false);
   const [cityExpanded, setCityExpanded] = useState(false);
   const char = player.revealedCharacter;
@@ -70,11 +72,11 @@ export function PlayerSeat({
             <div className="flex items-center gap-1">
               {hasCrown && <span className="text-yellow-400 text-sm">&#9813;</span>}
               <span className={`text-xs font-bold truncate ${isMe ? 'text-cyan-300' : 'text-amber-100'}`}>{player.name}</span>
-              {player.isBot && <span className="text-[9px] text-slate-500">BOT</span>}
+              {player.isBot && <span className="text-[9px] text-slate-500">{t('seat.bot')}</span>}
             </div>
-            {char && <div className="text-[10px] text-amber-400/80 truncate">{char.name}</div>}
-            {isMurdered && <div className="text-[10px] text-red-400">{'\u2620'} Murdered</div>}
-            {isRobbed && !isMurdered && <div className="text-[10px] text-amber-400">{'\u2666'} Robbed</div>}
+            {char && <div className="text-[10px] text-amber-400/80 truncate">{t.character(char.name)}</div>}
+            {isMurdered && <div className="text-[10px] text-red-400">{t('seat.murdered')}</div>}
+            {isRobbed && !isMurdered && <div className="text-[10px] text-amber-400">{t('seat.robbed')}</div>}
           </div>
 
           <div className="shrink-0 text-right">
@@ -94,7 +96,7 @@ export function PlayerSeat({
         {/* Latest action */}
         {latestActions.length > 0 && (
           <div className="mt-1 text-[10px] text-slate-400 truncate pl-11">
-            <span className="text-slate-600">&rsaquo;</span> {latestActions[0]}
+            <span className="text-slate-600">&rsaquo;</span> {t.log(latestActions[0])}
           </div>
         )}
 
@@ -130,7 +132,7 @@ export function PlayerSeat({
             </div>
 
             {/* Count label on lg when cards are shown */}
-            <div className="hidden lg:block text-[9px] text-slate-500 mt-0.5">{player.city.length}/8 districts</div>
+            <div className="hidden lg:block text-[9px] text-slate-500 mt-0.5">{t('board.districts', { count: player.city.length })}</div>
           </div>
         )}
       </div>
@@ -138,15 +140,14 @@ export function PlayerSeat({
   );
 }
 
-export function getPlayerActions(log: LogEntry[], playerName: string, maxActions = 2): string[] {
-  const actions: string[] = [];
+/**
+ * The most recent things this player did. Matching on the `player` parameter is
+ * exact, where the old substring search on English prose was not.
+ */
+export function getPlayerActions(log: LogEntry[], playerName: string, maxActions = 2): LogEntry[] {
+  const actions: LogEntry[] = [];
   for (let i = log.length - 1; i >= 0 && actions.length < maxActions; i--) {
-    const msg = log[i].message;
-    if (msg.startsWith(playerName + ' ')) {
-      actions.push(msg.slice(playerName.length + 1));
-    } else if (msg.includes(playerName) && !msg.startsWith('Round') && !msg.startsWith('Game') && !msg.startsWith('Character')) {
-      actions.push(msg);
-    }
+    if (log[i].params?.player === playerName) actions.push(log[i]);
   }
   return actions;
 }

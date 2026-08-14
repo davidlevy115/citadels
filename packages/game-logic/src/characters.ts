@@ -1,6 +1,15 @@
 import type { GameState, Player, Character, CharacterName, DistrictType } from './types.js';
 import { CHARACTER_INCOME_TYPE, CHARACTER_INCOME_AS_CARDS } from './constants.js';
 import { addLog } from './utils.js';
+import { fail, type ErrorCode } from './errors.js';
+import type { LogParams } from './log.js';
+
+/** Why an action is not allowed, or null when it is. */
+export type Refusal = { code: ErrorCode; params?: LogParams } | null;
+
+function refuse(code: ErrorCode, params?: LogParams): Refusal {
+  return { code, params };
+}
 
 /** The character whose powers are in effect for the active turn. */
 export function effectiveCharacter(state: GameState): Character | null {
@@ -45,10 +54,10 @@ export function collectIncome(state: GameState, playerIndex: number, character: 
   if (incomeIsCards(character)) {
     const drawn = drawCards(state, count);
     state.players[playerIndex] = { ...player, hand: [...player.hand, ...drawn] };
-    addLog(state, `${player.name} draws ${drawn.length} cards as income from districts.`);
+    addLog(state, 'income.cards', { player: player.name, count: drawn.length });
   } else {
     state.players[playerIndex] = { ...player, gold: player.gold + count };
-    addLog(state, `${player.name} collects ${count} gold income from districts.`);
+    addLog(state, 'income.gold', { player: player.name, amount: count });
   }
   return state;
 }
@@ -68,7 +77,7 @@ export function applyMerchantBonus(state: GameState, playerIndex: number): GameS
   if (effectiveName(state) === 'Merchant' && state.turnState && !state.turnState.merchantBonusTaken) {
     state.players[playerIndex] = { ...player, gold: player.gold + 1 };
     state.turnState.merchantBonusTaken = true;
-    addLog(state, `${player.name} receives 1 bonus gold as Merchant.`);
+    addLog(state, 'merchant.bonus', { player: player.name });
   }
   return state;
 }
@@ -80,7 +89,7 @@ export function applyArchitectDraw(state: GameState, playerIndex: number): GameS
   const drawn = drawCards(state, 2);
   if (drawn.length > 0) {
     state.players[playerIndex] = { ...player, hand: [...player.hand, ...drawn] };
-    addLog(state, `${player.name} draws ${drawn.length} extra cards as Architect.`);
+    addLog(state, 'architect.draw', { player: player.name, count: drawn.length });
   }
   return state;
 }
@@ -101,7 +110,7 @@ export function applyAbbotTribute(state: GameState, playerIndex: number): GameSt
   const donorIndex = state.players.findIndex(p => p.id === donor.id);
   state.players[donorIndex] = { ...donor, gold: donor.gold - 1 };
   state.players[playerIndex] = { ...state.players[playerIndex], gold: state.players[playerIndex].gold + 1 };
-  addLog(state, `${donor.name} is the richest and gives 1 gold to ${abbot.name} (Abbot).`);
+  addLog(state, 'abbot.tribute', { donor: donor.name, player: abbot.name });
   return state;
 }
 
@@ -117,7 +126,7 @@ export function applyQueenBonus(state: GameState, playerIndex: number): GameStat
 
   const player = state.players[playerIndex];
   state.players[playerIndex] = { ...player, gold: player.gold + 3 };
-  addLog(state, `${player.name} (Queen) sits beside the rank 4 character and gains 3 gold.`);
+  addLog(state, 'queen.bonus', { player: player.name });
   return state;
 }
 
@@ -139,28 +148,25 @@ export function canWarlordDestroy(
   targetPlayerId: string,
   districtIndex: number,
   shorterGame: boolean
-): string | null {
+): Refusal {
   const targetPlayer = state.players.find(p => p.id === targetPlayerId);
-  if (!targetPlayer) return 'Target player not found.';
+  if (!targetPlayer) return refuse('err.targetPlayerNotFound');
 
   const limit = shorterGame ? 7 : 8;
-  if (targetPlayer.city.length >= limit) return 'Cannot destroy districts in a completed city.';
-
-  if (isProtectedFromRank8(state, targetPlayer)) return "Cannot destroy the Bishop's districts.";
-  if (state.turnState?.isWitchResume && state.bewitchedCharacter === 5) {
-    // Witch playing the Bishop is protected, but that is checked on the target side only
-  }
+  if (targetPlayer.city.length >= limit) return refuse('err.cannotDestroyCompleted');
+  if (isProtectedFromRank8(state, targetPlayer)) return refuse('err.bishopProtected');
 
   const district = targetPlayer.city[districtIndex];
-  if (!district) return 'District not found.';
-  if (district.name === 'Keep') return 'The Keep cannot be destroyed.';
+  if (!district) return refuse('err.districtNotFound');
+  if (district.name === 'Keep') return refuse('err.keepCannotDestroy');
 
-  const destroyerId = state.turnState?.playerId;
-  const destroyer = state.players.find(p => p.id === destroyerId);
-  if (!destroyer) return 'No rank 8 character found.';
+  const destroyer = state.players.find(p => p.id === state.turnState?.playerId);
+  if (!destroyer) return refuse('err.noRank8');
 
   const destroyCost = getWarlordDestroyCost(state, targetPlayerId, districtIndex);
-  if (destroyer.gold < destroyCost) return `Not enough gold. Need ${destroyCost}, have ${destroyer.gold}.`;
+  if (destroyer.gold < destroyCost) {
+    return refuse('err.notEnoughGoldCost', { cost: destroyCost, gold: destroyer.gold });
+  }
 
   return null; // can destroy
 }
@@ -176,14 +182,14 @@ export function getWarlordDestroyCost(state: GameState, targetPlayerId: string, 
 }
 
 /** Diplomat and Marshal share the Bishop restriction and the completed-city rule. */
-export function canTakeDistrictFrom(state: GameState, targetPlayerId: string, districtIndex: number): string | null {
+export function canTakeDistrictFrom(state: GameState, targetPlayerId: string, districtIndex: number): Refusal {
   const target = state.players.find(p => p.id === targetPlayerId);
-  if (!target) return 'Target player not found.';
-  if (target.city.length >= 8) return 'Cannot touch a completed city.';
-  if (isProtectedFromRank8(state, target)) return "Cannot touch the Bishop's districts.";
+  if (!target) return refuse('err.targetPlayerNotFound');
+  if (target.city.length >= 8) return refuse('err.cannotTouchCompleted');
+  if (isProtectedFromRank8(state, target)) return refuse('err.bishopProtected');
   const district = target.city[districtIndex];
-  if (!district) return 'District not found.';
-  if (district.name === 'Keep') return 'The Keep cannot be taken.';
+  if (!district) return refuse('err.districtNotFound');
+  if (district.name === 'Keep') return refuse('err.keepCannotTake');
   return null;
 }
 

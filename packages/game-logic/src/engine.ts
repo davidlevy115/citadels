@@ -1,6 +1,6 @@
 import type {
   GameState, GameConfig, GameAction, Player, Character, DistrictCard, DistrictType,
-  TurnState, PlayerGameView, PlayerPublicInfo, RoundEvent,
+  TurnState, PlayerGameView, PlayerPublicInfo, RoundEvent, LogEntry,
 } from './types.js';
 import {
   createDistrictDeck, buildCast, CROWN_TAKING_CHARACTERS,
@@ -16,6 +16,7 @@ import {
 } from './characters.js';
 import { calculateScores, determineWinner } from './scoring.js';
 import { shuffle, generateId, cloneState, addLog } from './utils.js';
+import { fail } from './errors.js';
 
 function getDistrictsToWin(config?: { shorterGame?: boolean }): number {
   return config?.shorterGame ? DISTRICTS_TO_WIN_SHORT : DISTRICTS_TO_WIN;
@@ -42,7 +43,7 @@ function castHas(state: GameState, name: string): boolean {
 
 export function createGame(config: GameConfig): GameState {
   if (config.players.length < 2 || config.players.length > 7) {
-    throw new Error('Citadels requires 2-7 players.');
+    fail('err.playerCountRange');
   }
 
   const districtDeck = shuffle(createDistrictDeck());
@@ -118,9 +119,9 @@ export function createGame(config: GameConfig): GameState {
   // The oldest player takes the Crown.
   state.crownPlayerIndex = oldestPlayerIndex(players);
 
-  addLog(state, `Game started with ${players.length} players.`);
-  addLog(state, `Characters in play: ${cast.map(c => `${c.name} (#${c.rank})`).join(', ')}.`);
-  addLog(state, `${players[state.crownPlayerIndex].name} is the oldest player and receives the Crown.`);
+  addLog(state, 'game.started', { count: players.length });
+  addLog(state, 'game.cast', { characters: cast.map(c => c.name) });
+  addLog(state, 'game.crownOldest', { player: players[state.crownPlayerIndex].name });
   return startRemoveCharacters(state);
 }
 
@@ -166,17 +167,13 @@ function startRemoveCharacters(state: GameState): GameState {
   if (numPlayers >= 4 && numPlayers <= 7) {
     const faceUpCount = table[numPlayers] ?? 0;
     for (let i = 0; i < faceUpCount; i++) {
-      if (state.characterDeck.length === 0) break;
-      const card = state.characterDeck.shift()!;
-      // The rank 4 character may never be among the faceup discards.
-      if (card.rank === 4) {
-        state.characterDeck.push(card);
-        shuffle(state.characterDeck);
-        const replacement = state.characterDeck.shift()!;
-        state.removedCharactersFaceUp.push(replacement);
-      } else {
-        state.removedCharactersFaceUp.push(card);
-      }
+      // The rank 4 character may never be among the faceup discards. The deck
+      // is already shuffled, so taking the first card that is not rank 4 is
+      // still a uniform draw — and, unlike reshuffling and drawing again,
+      // it cannot hand back the rank 4 card a second time.
+      const index = state.characterDeck.findIndex(c => c.rank !== 4);
+      if (index === -1) break;
+      state.removedCharactersFaceUp.push(state.characterDeck.splice(index, 1)[0]);
     }
   }
 
@@ -186,7 +183,7 @@ function startRemoveCharacters(state: GameState): GameState {
   state.choosingPlayerIndex = state.crownPlayerIndex;
   state.phase = 'chooseCharacters';
 
-  addLog(state, `Round ${state.round}: Character selection begins.`);
+  addLog(state, 'round.selectionBegins', { round: state.round });
   return state;
 }
 
@@ -194,20 +191,20 @@ function startRemoveCharacters(state: GameState): GameState {
 
 function handleChooseCharacter(state: GameState, playerId: string, characterRank: number): GameState {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
+  if (playerIndex === -1) fail('err.playerNotFound');
 
   const numPlayers = state.players.length;
   if (playerIndex !== state.choosingPlayerIndex) {
-    throw new Error('Not your turn to choose a character.');
+    fail('err.notYourTurnToChoose');
   }
 
   const charIndex = state.availableCharacters.findIndex(c => c.rank === characterRank);
-  if (charIndex === -1) throw new Error('Character not available.');
+  if (charIndex === -1) fail('err.characterNotAvailable');
 
   const character = state.availableCharacters.splice(charIndex, 1)[0];
   state.players[playerIndex].characterCard = character;
 
-  addLog(state, `${state.players[playerIndex].name} chose a character.`);
+  addLog(state, 'player.choseCharacter', { player: state.players[playerIndex].name });
 
   state.choosingPlayerIndex = (state.choosingPlayerIndex + 1) % numPlayers;
 
@@ -237,7 +234,7 @@ function handleChooseCharacter(state: GameState, playerId: string, characterRank
 function startPlayerTurns(state: GameState): GameState {
   state.phase = 'playerTurns';
   state.currentCharacterRank = 0;
-  addLog(state, 'Character selection complete. Calling characters...');
+  addLog(state, 'round.selectionComplete');
   return advanceToNextCharacter(state);
 }
 
@@ -259,7 +256,7 @@ function advanceToNextCharacter(state: GameState): GameState {
       const player = state.players[playerIndex];
 
       if (state.murderedCharacter === state.currentCharacterRank) {
-        addLog(state, `${player.characterCard!.name} was killed! ${player.name} skips their turn.`);
+        addLog(state, 'turn.killed', { character: player.characterCard!.name, player: player.name });
         state.currentCharacterRank++;
         continue;
       }
@@ -278,12 +275,12 @@ function startTurnFor(state: GameState, playerIndex: number): GameState {
   const character = player.characterCard!;
   const isBewitched = state.bewitchedCharacter === character.rank;
 
-  addLog(state, `${character.name} (#${character.rank}) is called. ${player.name} reveals.`);
+  addLog(state, 'turn.called', { character: character.name, rank: character.rank, player: player.name });
 
   // Rank 4 characters that simply take the Crown do so on reveal.
   if (CROWN_TAKING_CHARACTERS.includes(character.name) && character.name !== 'Emperor') {
     state.crownPlayerIndex = playerIndex;
-    addLog(state, `${player.name} takes the Crown.`);
+    addLog(state, 'turn.takesCrown', { player: player.name });
   }
 
   // Thief collects when the robbed character reveals.
@@ -294,7 +291,7 @@ function startTurnFor(state: GameState, playerIndex: number): GameState {
       state.players[playerIndex] = { ...player, gold: 0 };
       const thiefIndex = state.players.findIndex(p => p.id === thief.id);
       state.players[thiefIndex] = { ...thief, gold: thief.gold + stolen };
-      addLog(state, `${thief.name} (Thief) steals ${stolen} gold from ${player.name}!`);
+      addLog(state, 'thief.steals', { player: thief.name, amount: stolen, target: player.name });
     }
   }
 
@@ -318,7 +315,7 @@ function startTurnFor(state: GameState, playerIndex: number): GameState {
   };
 
   if (isBewitched) {
-    addLog(state, `${player.name} is bewitched — they may only gather resources.`);
+    addLog(state, 'turn.bewitchedNotice', { player: player.name });
   }
 
   // The Queen's bonus is automatic on reveal.
@@ -338,7 +335,7 @@ function startWitchResume(state: GameState): GameState {
   }
 
   const witch = state.players[witchIndex];
-  addLog(state, `${witch.name} (Witch) resumes their turn as the ${bewitchedChar.name}.`);
+  addLog(state, 'witch.resumes', { player: witch.name, character: bewitchedChar.name });
 
   state.turnState = {
     playerId: witch.id,
@@ -375,7 +372,7 @@ function handleTakeGold(state: GameState, playerId: string): GameState {
   state.players[playerIndex] = { ...player, gold: player.gold + 2 };
   state.turnState!.actionTaken = true;
   state.turnState!.phase = 'actionTaken';
-  addLog(state, `${player.name} takes 2 gold. (Total: ${player.gold + 2})`);
+  addLog(state, 'action.takeGold', { player: player.name, total: player.gold + 2 });
 
   return afterGather(state, playerIndex);
 }
@@ -392,25 +389,25 @@ function handleDrawCards(state: GameState, playerId: string): GameState {
     state.players[playerIndex] = { ...player, hand: [...player.hand, ...drawn] };
     state.turnState!.actionTaken = true;
     state.turnState!.phase = 'actionTaken';
-    addLog(state, `${player.name} draws ${drawn.length} cards and keeps ${drawn.length === 1 ? 'it' : 'all'}.`);
+    addLog(state, drawn.length === 1 ? 'action.drawKeptOne' : 'action.drawKeptAll', { player: player.name, count: drawn.length });
     return afterGather(state, playerIndex);
   }
 
   state.turnState!.drawnCards = drawn;
   state.turnState!.phase = 'choosingCard';
-  addLog(state, `${player.name} draws ${drawn.length} cards and must choose one to keep.`);
+  addLog(state, 'action.drawChoose', { player: player.name, count: drawn.length });
   return state;
 }
 
 function handleKeepCard(state: GameState, playerId: string, cardIndex: number): GameState {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
+  if (playerIndex === -1) fail('err.playerNotFound');
   if (!state.turnState || state.turnState.phase !== 'choosingCard') {
-    throw new Error('Not in card choosing phase.');
+    fail('err.notInCardChoosingPhase');
   }
 
   const drawn = state.turnState.drawnCards;
-  if (cardIndex < 0 || cardIndex >= drawn.length) throw new Error('Invalid card index.');
+  if (cardIndex < 0 || cardIndex >= drawn.length) fail('err.invalidCardIndex');
 
   const kept = drawn[cardIndex];
   const returned = drawn.filter((_, i) => i !== cardIndex);
@@ -450,28 +447,25 @@ function afterGather(state: GameState, playerIndex: number): GameState {
 
 function handleBuildDistrict(state: GameState, playerId: string, cardIndex: number): GameState {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
+  if (playerIndex === -1) fail('err.playerNotFound');
   const turn = state.turnState;
-  if (!turn) throw new Error('No active turn.');
-  if (turn.playerId !== playerId) throw new Error('Not your turn.');
-  if (!turn.actionTaken) throw new Error('Must take an action first.');
-  if (turn.isBewitchedTurn) throw new Error('A bewitched player cannot build.');
+  if (!turn) fail('err.noActiveTurn');
+  if (turn.playerId !== playerId) fail('err.notYourTurn');
+  if (!turn.actionTaken) fail('err.mustActFirst');
+  if (turn.isBewitchedTurn) fail('err.bewitchedCannotBuild');
 
   const player = state.players[playerIndex];
   const card = player.hand[cardIndex];
-  if (!card) throw new Error('Invalid card index.');
+  if (!card) fail('err.invalidCardIndex');
 
   const isTraderFreebie = effectiveName(state) === 'Trader' && card.type === 'trade';
   if (!isTraderFreebie && turn.districtsBuilt >= turn.maxDistricts) {
-    throw new Error(
-      turn.maxDistricts === 0
-        ? 'You cannot build a district this turn.'
-        : `Cannot build more than ${turn.maxDistricts} districts this turn.`
-    );
+    if (turn.maxDistricts === 0) fail('err.cannotBuildThisTurn');
+    fail('err.buildLimit', { max: turn.maxDistricts });
   }
-  if (player.gold < card.cost) throw new Error(`Not enough gold. Need ${card.cost}, have ${player.gold}.`);
+  if (player.gold < card.cost) fail('err.notEnoughGoldCost', { cost: card.cost, gold: player.gold });
   if (!canBuildDuplicate(state, player) && player.city.some(d => d.name === card.name)) {
-    throw new Error(`You already have ${card.name} in your city.`);
+    fail('err.duplicateDistrict', { district: card.name });
   }
 
   const newHand = [...player.hand];
@@ -486,7 +480,7 @@ function handleBuildDistrict(state: GameState, playerId: string, cardIndex: numb
 
   if (!isTraderFreebie) turn.districtsBuilt++;
   turn.goldSpentBuilding += card.cost;
-  addLog(state, `${player.name} builds ${card.name} (cost ${card.cost}).`);
+  addLog(state, 'build.district', { player: player.name, district: card.name, cost: card.cost });
 
   state = applyTax(state, playerIndex);
   state = checkGameEndTrigger(state, playerIndex);
@@ -510,7 +504,7 @@ function applyTax(state: GameState, playerIndex: number): GameState {
 
   state.players[playerIndex] = { ...player, gold: player.gold - 1 };
   state.taxPot += 1;
-  addLog(state, `${player.name} pays 1 gold in property tax. (Tax pot: ${state.taxPot})`);
+  addLog(state, 'tax.paid', { player: player.name, pot: state.taxPot });
   return state;
 }
 
@@ -520,7 +514,7 @@ function checkGameEndTrigger(state: GameState, playerIndex: number): GameState {
   if (player.city.length >= limit && !state.gameEndTriggered) {
     state.gameEndTriggered = true;
     state.firstToEightDistricts = player.id;
-    addLog(state, `${player.name} has built ${limit} districts! This is the final round.`);
+    addLog(state, 'build.finalRound', { player: player.name, limit });
   }
   return state;
 }
@@ -535,13 +529,13 @@ function handleAssassinKill(state: GameState, playerId: string, targetRank: numb
   state.turnState!.powerUsed = true;
 
   const targetChar = state.cast.find(c => c.rank === targetRank);
-  addLog(state, `${state.players[playerIndex].name} (Assassin) kills the ${targetChar?.name ?? 'unknown'}!`);
+  addLog(state, 'assassin.kills', { player: state.players[playerIndex].name, character: targetChar?.name ?? '' });
   return state;
 }
 
 function handleWitchBewitch(state: GameState, playerId: string, targetRank: number): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Witch');
-  if (!state.turnState!.actionTaken) throw new Error('The Witch must gather resources before bewitching.');
+  if (!state.turnState!.actionTaken) fail('err.witchMustGather');
   validateTargetRank(state, targetRank, 2);
 
   state.bewitchedCharacter = targetRank;
@@ -549,7 +543,7 @@ function handleWitchBewitch(state: GameState, playerId: string, targetRank: numb
   state.turnState!.powerUsed = true;
 
   const targetChar = state.cast.find(c => c.rank === targetRank);
-  addLog(state, `${state.players[playerIndex].name} (Witch) bewitches the ${targetChar?.name ?? 'unknown'}!`);
+  addLog(state, 'witch.bewitches', { player: state.players[playerIndex].name, character: targetChar?.name ?? '' });
 
   // The Witch's turn goes on hold immediately.
   return endTurnInternal(state);
@@ -561,13 +555,13 @@ function handleMagistrateWarrants(
   const playerIndex = validatePowerUse(state, playerId, 'Magistrate');
   const ranks = [signedRank, ...otherRanks];
   const unique = new Set(ranks);
-  if (unique.size !== ranks.length) throw new Error('Each warrant must go on a different character.');
+  if (unique.size !== ranks.length) fail('err.warrantsDistinct');
   for (const r of ranks) validateTargetRank(state, r, 2);
 
   state.warrants = ranks.map(r => ({ rank: r, signed: r === signedRank }));
   state.magistratePlayerId = playerId;
   state.turnState!.powerUsed = true;
-  addLog(state, `${state.players[playerIndex].name} (Magistrate) issues warrants against ranks ${ranks.sort((a, b) => a - b).join(', ')}.`);
+  addLog(state, 'magistrate.warrants', { player: state.players[playerIndex].name, ranks: ranks.slice().sort((a, b) => a - b).join(', ') });
   return state;
 }
 
@@ -592,14 +586,14 @@ function maybeTriggerWarrant(state: GameState, builderIndex: number, card: Distr
     targetPlayerId: builder.id,
     card,
   };
-  addLog(state, `${magistrate.name} may reveal a warrant against ${builder.name}'s ${card.name}.`);
+  addLog(state, 'magistrate.mayReveal', { player: magistrate.name, target: builder.name, district: card.name });
   return state;
 }
 
 function handleMagistrateConfiscate(state: GameState, playerId: string): GameState {
   const pending = state.pendingMagistrate;
-  if (!pending) throw new Error('No warrant decision pending.');
-  if (pending.playerId !== playerId) throw new Error('Not your warrant decision.');
+  if (!pending) fail('err.noWarrantPending');
+  if (pending.playerId !== playerId) fail('err.notYourWarrantDecision');
 
   const magistrateIndex = state.players.findIndex(p => p.id === playerId);
   const targetIndex = state.players.findIndex(p => p.id === pending.targetPlayerId);
@@ -621,14 +615,14 @@ function handleMagistrateConfiscate(state: GameState, playerId: string): GameSta
     city: [...state.players[magistrateIndex].city, confiscated],
   };
 
-  addLog(state, `${state.players[magistrateIndex].name} (Magistrate) confiscates ${confiscated.name} from ${target.name}!`);
+  addLog(state, 'magistrate.confiscates', { player: state.players[magistrateIndex].name, district: confiscated.name, target: target.name });
   state.pendingMagistrate = null;
   return checkGameEndTrigger(state, magistrateIndex);
 }
 
 function handleMagistratePass(state: GameState, playerId: string): GameState {
-  if (!state.pendingMagistrate) throw new Error('No warrant decision pending.');
-  if (state.pendingMagistrate.playerId !== playerId) throw new Error('Not your warrant decision.');
+  if (!state.pendingMagistrate) fail('err.noWarrantPending');
+  if (state.pendingMagistrate.playerId !== playerId) fail('err.notYourWarrantDecision');
   state.pendingMagistrate = null;
   return state;
 }
@@ -637,22 +631,22 @@ function handleThiefSteal(state: GameState, playerId: string, targetRank: number
   const playerIndex = validatePowerUse(state, playerId, 'Thief');
 
   validateTargetRank(state, targetRank, 3);
-  if (state.murderedCharacter === targetRank) throw new Error('Cannot steal from the killed character.');
-  if (state.bewitchedCharacter === targetRank) throw new Error('Cannot steal from the bewitched character.');
+  if (state.murderedCharacter === targetRank) fail('err.stealFromKilled');
+  if (state.bewitchedCharacter === targetRank) fail('err.stealFromBewitched');
 
   state.robbedCharacter = targetRank;
   state.turnState!.powerUsed = true;
 
   const targetChar = state.cast.find(c => c.rank === targetRank);
-  addLog(state, `${state.players[playerIndex].name} (Thief) targets the ${targetChar?.name ?? 'unknown'} for robbery.`);
+  addLog(state, 'thief.targets', { player: state.players[playerIndex].name, character: targetChar?.name ?? '' });
   return state;
 }
 
 function handleSpy(state: GameState, playerId: string, targetPlayerId: string, districtType: DistrictType): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Spy');
   const targetIndex = state.players.findIndex(p => p.id === targetPlayerId);
-  if (targetIndex === -1) throw new Error('Target player not found.');
-  if (targetPlayerId === playerId) throw new Error('Cannot spy on yourself.');
+  if (targetIndex === -1) fail('err.targetPlayerNotFound');
+  if (targetPlayerId === playerId) fail('err.cannotSpySelf');
 
   const target = state.players[targetIndex];
   const matches = target.hand.filter(c => c.type === districtType).length;
@@ -668,25 +662,30 @@ function handleSpy(state: GameState, playerId: string, targetPlayerId: string, d
 
   state.revealedHands.push({ viewerId: playerId, targetId: targetPlayerId });
   state.turnState!.powerUsed = true;
-  addLog(state,
-    `${state.players[playerIndex].name} (Spy) inspects ${target.name}'s hand for ${districtType} districts: ` +
-    `${matches} match${matches === 1 ? '' : 'es'}, taking ${goldTaken} gold and drawing ${drawn.length} cards.`);
+  addLog(state, 'spy.inspects', {
+    player: state.players[playerIndex].name,
+    target: target.name,
+    districtType,
+    matches,
+    gold: goldTaken,
+    cards: drawn.length,
+  });
   return state;
 }
 
 function handleBlackmailAssign(state: GameState, playerId: string, realRank: number, bluffRank: number): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Blackmailer');
-  if (realRank === bluffRank) throw new Error('Threats must go on two different characters.');
+  if (realRank === bluffRank) fail('err.threatsDistinct');
   for (const r of [realRank, bluffRank]) {
     validateTargetRank(state, r, 3);
-    if (state.murderedCharacter === r) throw new Error('Cannot threaten the killed character.');
-    if (state.bewitchedCharacter === r) throw new Error('Cannot threaten the bewitched character.');
+    if (state.murderedCharacter === r) fail('err.threatenKilled');
+    if (state.bewitchedCharacter === r) fail('err.threatenBewitched');
   }
 
   state.threats = [{ rank: realRank, real: true }, { rank: bluffRank, real: false }];
   state.blackmailerPlayerId = playerId;
   state.turnState!.powerUsed = true;
-  addLog(state, `${state.players[playerIndex].name} (Blackmailer) threatens ranks ${[realRank, bluffRank].sort((a, b) => a - b).join(' and ')}.`);
+  addLog(state, 'blackmailer.threatens', { player: state.players[playerIndex].name, ranks: [realRank, bluffRank].sort((a, b) => a - b).join(', ') });
   return state;
 }
 
@@ -710,14 +709,14 @@ function maybeStartBlackmailResolution(state: GameState, playerIndex: number): G
     stage: 'bribe',
     bribeAmount: Math.floor(player.gold / 2),
   };
-  addLog(state, `${player.name} is threatened and must bribe or refuse.`);
+  addLog(state, 'blackmail.mustDecide', { player: player.name });
   return state;
 }
 
 function handleBlackmailPay(state: GameState, playerId: string): GameState {
   const pending = state.pendingBlackmail;
-  if (!pending || pending.stage !== 'bribe') throw new Error('No bribe decision pending.');
-  if (pending.playerId !== playerId) throw new Error('Not your decision.');
+  if (!pending || pending.stage !== 'bribe') fail('err.noBribePending');
+  if (pending.playerId !== playerId) fail('err.notYourDecision');
 
   const payerIndex = state.players.findIndex(p => p.id === playerId);
   const blackmailerIndex = state.players.findIndex(p => p.id === pending.blackmailerId);
@@ -728,17 +727,17 @@ function handleBlackmailPay(state: GameState, playerId: string): GameState {
 
   // Bribing removes the marker without ever revealing it.
   state.threats = state.threats.filter(t => t.rank !== state.players[payerIndex].characterCard?.rank);
-  addLog(state, `${state.players[payerIndex].name} bribes ${state.players[blackmailerIndex].name} with ${amount} gold.`);
+  addLog(state, 'blackmail.bribes', { player: state.players[payerIndex].name, target: state.players[blackmailerIndex].name, amount });
   state.pendingBlackmail = null;
   return state;
 }
 
 function handleBlackmailRefuse(state: GameState, playerId: string): GameState {
   const pending = state.pendingBlackmail;
-  if (!pending || pending.stage !== 'bribe') throw new Error('No bribe decision pending.');
-  if (pending.playerId !== playerId) throw new Error('Not your decision.');
+  if (!pending || pending.stage !== 'bribe') fail('err.noBribePending');
+  if (pending.playerId !== playerId) fail('err.notYourDecision');
 
-  addLog(state, `${state.players.find(p => p.id === playerId)?.name} refuses to pay the Blackmailer.`);
+  addLog(state, 'blackmail.refuses', { player: state.players.find(p => p.id === playerId)?.name ?? '' });
   state.pendingBlackmail = {
     ...pending,
     playerId: pending.blackmailerId,   // the Blackmailer now decides
@@ -749,8 +748,8 @@ function handleBlackmailRefuse(state: GameState, playerId: string): GameState {
 
 function handleBlackmailReveal(state: GameState, playerId: string): GameState {
   const pending = state.pendingBlackmail;
-  if (!pending || pending.stage !== 'reveal') throw new Error('No reveal decision pending.');
-  if (pending.playerId !== playerId) throw new Error('Not your decision.');
+  if (!pending || pending.stage !== 'reveal') fail('err.noRevealPending');
+  if (pending.playerId !== playerId) fail('err.notYourDecision');
 
   const blackmailerIndex = state.players.findIndex(p => p.id === pending.blackmailerId);
   const targetIndex = state.players.findIndex(p => p.id === state.turnState?.playerId);
@@ -765,9 +764,9 @@ function handleBlackmailReveal(state: GameState, playerId: string): GameState {
       ...state.players[blackmailerIndex],
       gold: state.players[blackmailerIndex].gold + taken,
     };
-    addLog(state, `${state.players[blackmailerIndex].name} reveals the real threat and takes ${taken} gold from ${target.name}!`);
+    addLog(state, 'blackmail.revealsReal', { player: state.players[blackmailerIndex].name, amount: taken, target: target.name });
   } else {
-    addLog(state, `${state.players[blackmailerIndex].name} reveals a bluff — ${target?.name} keeps their gold.`);
+    addLog(state, 'blackmail.revealsBluff', { player: state.players[blackmailerIndex].name, target: target?.name ?? '' });
   }
 
   state.threats = state.threats.filter(t => t.rank !== rank);
@@ -777,9 +776,9 @@ function handleBlackmailReveal(state: GameState, playerId: string): GameState {
 
 function handleBlackmailSkip(state: GameState, playerId: string): GameState {
   const pending = state.pendingBlackmail;
-  if (!pending || pending.stage !== 'reveal') throw new Error('No reveal decision pending.');
-  if (pending.playerId !== playerId) throw new Error('Not your decision.');
-  addLog(state, `${state.players.find(p => p.id === playerId)?.name} leaves the threat marker facedown.`);
+  if (!pending || pending.stage !== 'reveal') fail('err.noRevealPending');
+  if (pending.playerId !== playerId) fail('err.notYourDecision');
+  addLog(state, 'blackmail.skips', { player: state.players.find(p => p.id === playerId)?.name ?? '' });
   state.pendingBlackmail = null;
   return state;
 }
@@ -787,8 +786,8 @@ function handleBlackmailSkip(state: GameState, playerId: string): GameState {
 function handleMagicianSwapPlayer(state: GameState, playerId: string, targetPlayerId: string): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Magician');
   const targetIndex = state.players.findIndex(p => p.id === targetPlayerId);
-  if (targetIndex === -1) throw new Error('Target player not found.');
-  if (targetIndex === playerIndex) throw new Error('Cannot swap with yourself.');
+  if (targetIndex === -1) fail('err.targetPlayerNotFound');
+  if (targetIndex === playerIndex) fail('err.cannotSwapSelf');
 
   const myHand = state.players[playerIndex].hand;
   const theirHand = state.players[targetIndex].hand;
@@ -797,7 +796,7 @@ function handleMagicianSwapPlayer(state: GameState, playerId: string, targetPlay
   state.players[targetIndex] = { ...state.players[targetIndex], hand: myHand };
 
   state.turnState!.powerUsed = true;
-  addLog(state, `${state.players[playerIndex].name} (Magician) swaps hands with ${state.players[targetIndex].name}.`);
+  addLog(state, 'magician.swaps', { player: state.players[playerIndex].name, target: state.players[targetIndex].name });
   return state;
 }
 
@@ -807,7 +806,7 @@ function handleMagicianSwapDeck(state: GameState, playerId: string, cardIndices:
 
   const sortedIndices = [...new Set(cardIndices)].sort((a, b) => b - a);
   for (const idx of sortedIndices) {
-    if (idx < 0 || idx >= player.hand.length) throw new Error('Invalid card index.');
+    if (idx < 0 || idx >= player.hand.length) fail('err.invalidCardIndex');
   }
 
   const newHand = [...player.hand];
@@ -821,7 +820,7 @@ function handleMagicianSwapDeck(state: GameState, playerId: string, cardIndices:
 
   state.players[playerIndex] = { ...player, hand: [...newHand, ...drawn] };
   state.turnState!.powerUsed = true;
-  addLog(state, `${player.name} (Magician) discards ${discarded.length} cards and draws ${drawn.length} new ones.`);
+  addLog(state, 'magician.discards', { player: player.name, discarded: discarded.length, drawn: drawn.length });
   return state;
 }
 
@@ -830,12 +829,12 @@ function handleWizardTake(
 ): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Wizard');
   const targetIndex = state.players.findIndex(p => p.id === targetPlayerId);
-  if (targetIndex === -1) throw new Error('Target player not found.');
-  if (targetPlayerId === playerId) throw new Error('Choose another player.');
+  if (targetIndex === -1) fail('err.targetPlayerNotFound');
+  if (targetPlayerId === playerId) fail('err.chooseAnotherPlayer');
 
   const target = state.players[targetIndex];
   const card = target.hand[cardIndex];
-  if (!card) throw new Error('Invalid card index.');
+  if (!card) fail('err.invalidCardIndex');
 
   const newTargetHand = [...target.hand];
   newTargetHand.splice(cardIndex, 1);
@@ -843,19 +842,19 @@ function handleWizardTake(
 
   const wizard = state.players[playerIndex];
   if (build) {
-    if (wizard.gold < card.cost) throw new Error(`Not enough gold to build ${card.name}.`);
+    if (wizard.gold < card.cost) fail('err.notEnoughGoldForDistrict', { district: card.name });
     state.players[playerIndex] = {
       ...wizard,
       gold: wizard.gold - card.cost,
       city: [...wizard.city, { ...card }],
     };
     state.turnState!.goldSpentBuilding += card.cost;
-    addLog(state, `${wizard.name} (Wizard) takes ${card.name} from ${target.name} and builds it immediately.`);
+    addLog(state, 'wizard.takesAndBuilds', { player: wizard.name, district: card.name, target: target.name });
     state = applyTax(state, playerIndex);
     state = checkGameEndTrigger(state, playerIndex);
   } else {
     state.players[playerIndex] = { ...wizard, hand: [...wizard.hand, card] };
-    addLog(state, `${wizard.name} (Wizard) takes a card from ${target.name}'s hand.`);
+    addLog(state, 'wizard.takesCard', { player: wizard.name, target: target.name });
   }
 
   state.turnState!.powerUsed = true;
@@ -901,7 +900,7 @@ function handleSeerTake(state: GameState, playerId: string): GameState {
 
   state.players[playerIndex] = { ...state.players[playerIndex], hand };
   state.turnState!.powerUsed = true;
-  addLog(state, `${seer.name} (Seer) takes a card from ${donors.length} player${donors.length === 1 ? '' : 's'} and hands one back to each.`);
+  addLog(state, 'seer.takes', { player: seer.name, count: donors.length });
   return state;
 }
 
@@ -910,8 +909,8 @@ function handleEmperorCrown(
 ): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Emperor');
   const targetIndex = state.players.findIndex(p => p.id === targetPlayerId);
-  if (targetIndex === -1) throw new Error('Target player not found.');
-  if (targetPlayerId === playerId) throw new Error('You must give the Crown to someone else.');
+  if (targetIndex === -1) fail('err.targetPlayerNotFound');
+  if (targetPlayerId === playerId) fail('err.crownSomeoneElse');
 
   state.crownPlayerIndex = targetIndex;
   const target = state.players[targetIndex];
@@ -920,16 +919,16 @@ function handleEmperorCrown(
   if (take === 'gold' && target.gold > 0) {
     state.players[targetIndex] = { ...target, gold: target.gold - 1 };
     state.players[playerIndex] = { ...emperor, gold: emperor.gold + 1 };
-    addLog(state, `${emperor.name} (Emperor) crowns ${target.name} and takes 1 gold from them.`);
+    addLog(state, 'emperor.crownsGold', { player: emperor.name, target: target.name });
   } else if (take === 'card' && target.hand.length > 0) {
     const pick = Math.floor(Math.random() * target.hand.length);
     const newHand = [...target.hand];
     const [card] = newHand.splice(pick, 1);
     state.players[targetIndex] = { ...target, hand: newHand };
     state.players[playerIndex] = { ...emperor, hand: [...emperor.hand, card] };
-    addLog(state, `${emperor.name} (Emperor) crowns ${target.name} and takes a card from them.`);
+    addLog(state, 'emperor.crownsCard', { player: emperor.name, target: target.name });
   } else {
-    addLog(state, `${emperor.name} (Emperor) crowns ${target.name}, who has nothing to give.`);
+    addLog(state, 'emperor.crownsNothing', { player: emperor.name, target: target.name });
   }
 
   state.turnState!.powerUsed = true;
@@ -938,14 +937,14 @@ function handleEmperorCrown(
 
 function handleAbbotIncome(state: GameState, playerId: string, goldCount: number, cardCount: number): GameState {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
-  if (!state.turnState || state.turnState.playerId !== playerId) throw new Error('Not your turn.');
-  if (effectiveName(state) !== 'Abbot') throw new Error('You are not the Abbot.');
-  if (state.turnState.incomeCollected) throw new Error('Income already collected this turn.');
+  if (playerIndex === -1) fail('err.playerNotFound');
+  if (!state.turnState || state.turnState.playerId !== playerId) fail('err.notYourTurn');
+  if (effectiveName(state) !== 'Abbot') fail('err.notThatCharacter', { character: 'Abbot' });
+  if (state.turnState.incomeCollected) fail('err.incomeAlreadyCollected');
 
   const total = getCharacterIncomeCount(state.players[playerIndex], state.turnState.effectiveCharacter);
   if (goldCount < 0 || cardCount < 0 || goldCount + cardCount !== total) {
-    throw new Error(`You must split exactly ${total} between gold and cards.`);
+    fail('err.abbotSplit', { total });
   }
 
   const player = state.players[playerIndex];
@@ -956,7 +955,7 @@ function handleAbbotIncome(state: GameState, playerId: string, goldCount: number
     hand: [...player.hand, ...drawn],
   };
   if (total > 0) {
-    addLog(state, `${player.name} (Abbot) takes ${goldCount} gold and ${drawn.length} cards from religious districts.`);
+    addLog(state, 'abbot.income', { player: player.name, gold: goldCount, cards: drawn.length });
   }
 
   state.turnState.incomeCollected = true;
@@ -967,29 +966,29 @@ function handleCardinalBuild(
   state: GameState, playerId: string, cardIndex: number, lenderPlayerId: string
 ): GameState {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
+  if (playerIndex === -1) fail('err.playerNotFound');
   const turn = state.turnState;
-  if (!turn || turn.playerId !== playerId) throw new Error('Not your turn.');
-  if (effectiveName(state) !== 'Cardinal') throw new Error('You are not the Cardinal.');
-  if (!turn.actionTaken) throw new Error('Must take an action first.');
-  if (turn.districtsBuilt >= turn.maxDistricts) throw new Error('You have already built this turn.');
+  if (!turn || turn.playerId !== playerId) fail('err.notYourTurn');
+  if (effectiveName(state) !== 'Cardinal') fail('err.notThatCharacter', { character: 'Cardinal' });
+  if (!turn.actionTaken) fail('err.mustActFirst');
+  if (turn.districtsBuilt >= turn.maxDistricts) fail('err.alreadyBuiltThisTurn');
 
   const cardinal = state.players[playerIndex];
   const card = cardinal.hand[cardIndex];
-  if (!card) throw new Error('Invalid card index.');
-  if (cardinal.city.some(d => d.name === card.name)) throw new Error(`You already have ${card.name} in your city.`);
+  if (!card) fail('err.invalidCardIndex');
+  if (cardinal.city.some(d => d.name === card.name)) fail('err.duplicateDistrict', { district: card.name });
 
   const shortfall = card.cost - cardinal.gold;
-  if (shortfall <= 0) throw new Error('You can afford this district — build it normally.');
+  if (shortfall <= 0) fail('err.canAffordAlready');
 
   const lenderIndex = state.players.findIndex(p => p.id === lenderPlayerId);
-  if (lenderIndex === -1 || lenderPlayerId === playerId) throw new Error('Choose another player to take gold from.');
+  if (lenderIndex === -1 || lenderPlayerId === playerId) fail('err.chooseAnotherPlayer');
   const lender = state.players[lenderIndex];
-  if (lender.gold < shortfall) throw new Error(`${lender.name} does not have ${shortfall} gold.`);
+  if (lender.gold < shortfall) fail('err.lenderLacksGold', { player: lender.name, amount: shortfall });
 
   // One card from the Cardinal's hand for every gold taken (the card being built excluded).
   const payable = cardinal.hand.filter((_, i) => i !== cardIndex);
-  if (payable.length < shortfall) throw new Error(`You need ${shortfall} spare cards to trade for the gold.`);
+  if (payable.length < shortfall) fail('err.needSpareCards', { amount: shortfall });
 
   const newHand = [...cardinal.hand];
   newHand.splice(cardIndex, 1);
@@ -1009,7 +1008,7 @@ function handleCardinalBuild(
 
   turn.districtsBuilt++;
   turn.goldSpentBuilding += card.cost;
-  addLog(state, `${cardinal.name} (Cardinal) takes ${shortfall} gold from ${lender.name} for ${shortfall} cards, and builds ${card.name}.`);
+  addLog(state, 'cardinal.builds', { player: cardinal.name, amount: shortfall, lender: lender.name, district: card.name });
 
   state = applyTax(state, playerIndex);
   state = checkGameEndTrigger(state, playerIndex);
@@ -1022,11 +1021,11 @@ function handleNavigatorGain(state: GameState, playerId: string, choice: 'gold' 
 
   if (choice === 'gold') {
     state.players[playerIndex] = { ...player, gold: player.gold + 4 };
-    addLog(state, `${player.name} (Navigator) gains 4 gold.`);
+    addLog(state, 'navigator.gold', { player: player.name });
   } else {
     const drawn = drawCards(state, 4);
     state.players[playerIndex] = { ...player, hand: [...player.hand, ...drawn] };
-    addLog(state, `${player.name} (Navigator) draws ${drawn.length} cards.`);
+    addLog(state, 'navigator.cards', { player: player.name, count: drawn.length });
   }
 
   state.turnState!.powerUsed = true;
@@ -1038,8 +1037,8 @@ function handleWarlordDestroy(
 ): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Warlord');
 
-  const error = canWarlordDestroy(state, targetPlayerId, districtIndex, false);
-  if (error) throw new Error(error);
+  const refusal = canWarlordDestroy(state, targetPlayerId, districtIndex, false);
+  if (refusal) fail(refusal.code, refusal.params);
 
   const targetPlayerIndex = state.players.findIndex(p => p.id === targetPlayerId);
   const targetPlayer = state.players[targetPlayerIndex];
@@ -1055,14 +1054,14 @@ function handleWarlordDestroy(
   state.players[targetPlayerIndex] = { ...targetPlayer, city: newCity };
 
   state.turnState!.powerUsed = true;
-  addLog(state, `${state.players[playerIndex].name} (Warlord) destroys ${removed.name} in ${targetPlayer.name}'s city (paid ${cost} gold).`);
+  addLog(state, 'warlord.destroys', { player: state.players[playerIndex].name, district: removed.name, target: targetPlayer.name, cost });
 
   const graveyardOwner = state.players.find(
     p => p.city.some(d => d.name === 'Graveyard') && p.id !== playerId
   );
   if (graveyardOwner && removed.name !== 'Graveyard' && graveyardOwner.gold >= 1) {
     state.pendingGraveyard = { playerId: graveyardOwner.id, card: removed };
-    addLog(state, `${graveyardOwner.name} may use Graveyard to recover ${removed.name} for 1 gold.`);
+    addLog(state, 'graveyard.mayRecover', { player: graveyardOwner.name, district: removed.name });
   } else {
     state.districtDiscard.push(removed);
   }
@@ -1075,9 +1074,9 @@ function handleDiplomatExchange(
   theirDistrictIndex: number, myDistrictIndex: number
 ): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Diplomat');
-  const error = canTakeDistrictFrom(state, targetPlayerId, theirDistrictIndex);
-  if (error) throw new Error(error);
-  if (targetPlayerId === playerId) throw new Error('Choose another player.');
+  const refusal = canTakeDistrictFrom(state, targetPlayerId, theirDistrictIndex);
+  if (refusal) fail(refusal.code, refusal.params);
+  if (targetPlayerId === playerId) fail('err.chooseAnotherPlayer');
 
   const targetIndex = state.players.findIndex(p => p.id === targetPlayerId);
   const diplomat = state.players[playerIndex];
@@ -1085,13 +1084,13 @@ function handleDiplomatExchange(
 
   const theirs = target.city[theirDistrictIndex];
   const mine = diplomat.city[myDistrictIndex];
-  if (!mine) throw new Error('Choose one of your own districts to give.');
-  if (mine.name === 'Keep') throw new Error('The Keep cannot be exchanged.');
+  if (!mine) fail('err.chooseOwnDistrict');
+  if (mine.name === 'Keep') fail('err.keepCannotExchange');
   if (diplomat.city.some((d, i) => i !== myDistrictIndex && d.name === theirs.name)) {
-    throw new Error(`You already have ${theirs.name} in your city.`);
+    fail('err.duplicateDistrict', { district: theirs.name });
   }
   if (target.city.some((d, i) => i !== theirDistrictIndex && d.name === mine.name)) {
-    throw new Error(`${target.name} already has ${mine.name}.`);
+    fail('err.targetAlreadyHas', { player: target.name, district: mine.name });
   }
 
   // Pay the difference when taking the more valuable district. The Great Wall
@@ -1099,7 +1098,7 @@ function handleDiplomatExchange(
   const theirValue = districtValue(theirs) + (target.city.some(d => d.name === 'Great Wall') && theirs.name !== 'Great Wall' ? 1 : 0);
   const myValue = districtValue(mine);
   const difference = Math.max(0, theirValue - myValue);
-  if (diplomat.gold < difference) throw new Error(`Not enough gold. Need ${difference}.`);
+  if (diplomat.gold < difference) fail('err.notEnoughGoldAmount', { amount: difference });
 
   const myCity = [...diplomat.city];
   myCity.splice(myDistrictIndex, 1);
@@ -1118,7 +1117,9 @@ function handleDiplomatExchange(
   };
 
   state.turnState!.powerUsed = true;
-  addLog(state, `${diplomat.name} (Diplomat) exchanges ${mine.name} for ${target.name}'s ${theirs.name}${difference > 0 ? ` (paid ${difference} gold)` : ''}.`);
+  addLog(state, difference > 0 ? 'diplomat.exchangesPaid' : 'diplomat.exchanges', {
+    player: diplomat.name, district: mine.name, target: target.name, district2: theirs.name, paid: difference,
+  });
   return state;
 }
 
@@ -1126,9 +1127,9 @@ function handleMarshalSeize(
   state: GameState, playerId: string, targetPlayerId: string, districtIndex: number
 ): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Marshal');
-  const error = canTakeDistrictFrom(state, targetPlayerId, districtIndex);
-  if (error) throw new Error(error);
-  if (targetPlayerId === playerId) throw new Error('Choose another player.');
+  const refusal = canTakeDistrictFrom(state, targetPlayerId, districtIndex);
+  if (refusal) fail(refusal.code, refusal.params);
+  if (targetPlayerId === playerId) fail('err.chooseAnotherPlayer');
 
   const targetIndex = state.players.findIndex(p => p.id === targetPlayerId);
   const marshal = state.players[playerIndex];
@@ -1136,9 +1137,9 @@ function handleMarshalSeize(
   const district = target.city[districtIndex];
 
   const price = districtValue(district);
-  if (price > 3) throw new Error('The Marshal can only seize districts costing 3 or less.');
-  if (marshal.gold < price) throw new Error(`Not enough gold. Need ${price}.`);
-  if (marshal.city.some(d => d.name === district.name)) throw new Error(`You already have ${district.name}.`);
+  if (price > 3) fail('err.marshalCostLimit');
+  if (marshal.gold < price) fail('err.notEnoughGoldAmount', { amount: price });
+  if (marshal.city.some(d => d.name === district.name)) fail('err.youAlreadyHave', { district: district.name });
 
   const theirCity = [...target.city];
   theirCity.splice(districtIndex, 1);
@@ -1151,68 +1152,68 @@ function handleMarshalSeize(
   };
 
   state.turnState!.powerUsed = true;
-  addLog(state, `${marshal.name} (Marshal) seizes ${district.name} from ${target.name} for ${price} gold.`);
+  addLog(state, 'marshal.seizes', { player: marshal.name, district: district.name, target: target.name, price });
   return checkGameEndTrigger(state, playerIndex);
 }
 
 function handleArtistBeautify(state: GameState, playerId: string, districtIndex: number): GameState {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
+  if (playerIndex === -1) fail('err.playerNotFound');
   const turn = state.turnState;
-  if (!turn || turn.playerId !== playerId) throw new Error('Not your turn.');
-  if (effectiveName(state) !== 'Artist') throw new Error('You are not the Artist.');
-  if (turn.beautifiedCount >= 2) throw new Error('You can beautify at most 2 districts per turn.');
+  if (!turn || turn.playerId !== playerId) fail('err.notYourTurn');
+  if (effectiveName(state) !== 'Artist') fail('err.notThatCharacter', { character: 'Artist' });
+  if (turn.beautifiedCount >= 2) fail('err.beautifyLimit');
 
   const player = state.players[playerIndex];
   const district = player.city[districtIndex];
-  if (!district) throw new Error('District not found.');
-  if (district.beautified) throw new Error('That district is already beautified.');
-  if (player.gold < 1) throw new Error('Need 1 gold to beautify.');
+  if (!district) fail('err.districtNotFound');
+  if (district.beautified) fail('err.alreadyBeautified');
+  if (player.gold < 1) fail('err.needGoldBeautify');
 
   const newCity = [...player.city];
   newCity[districtIndex] = { ...district, beautified: true };
   state.players[playerIndex] = { ...player, gold: player.gold - 1, city: newCity };
   turn.beautifiedCount++;
-  addLog(state, `${player.name} (Artist) beautifies ${district.name}.`);
+  addLog(state, 'artist.beautifies', { player: player.name, district: district.name });
   return state;
 }
 
 function handleTaxCollectorCollect(state: GameState, playerId: string): GameState {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
-  if (!state.turnState || state.turnState.playerId !== playerId) throw new Error('Not your turn.');
-  if (effectiveName(state) !== 'Tax Collector') throw new Error('You are not the Tax Collector.');
-  if (state.turnState.powerUsed) throw new Error('Already collected this turn.');
+  if (playerIndex === -1) fail('err.playerNotFound');
+  if (!state.turnState || state.turnState.playerId !== playerId) fail('err.notYourTurn');
+  if (effectiveName(state) !== 'Tax Collector') fail('err.notThatCharacter', { character: 'Tax Collector' });
+  if (state.turnState.powerUsed) fail('err.incomeAlreadyCollected');
 
   const player = state.players[playerIndex];
   state.players[playerIndex] = { ...player, gold: player.gold + state.taxPot };
-  addLog(state, `${player.name} (Tax Collector) collects ${state.taxPot} gold in tax.`);
+  addLog(state, 'taxCollector.collects', { player: player.name, amount: state.taxPot });
   state.taxPot = 0;
   state.turnState.powerUsed = true;
   return state;
 }
 
 function handleGraveyardRecover(state: GameState, playerId: string): GameState {
-  if (!state.pendingGraveyard) throw new Error('No Graveyard decision pending.');
-  if (state.pendingGraveyard.playerId !== playerId) throw new Error('Not your Graveyard decision.');
+  if (!state.pendingGraveyard) fail('err.noGraveyardPending');
+  if (state.pendingGraveyard.playerId !== playerId) fail('err.notYourGraveyardDecision');
 
   const playerIndex = state.players.findIndex(p => p.id === playerId);
   const player = state.players[playerIndex];
-  if (player.gold < 1) throw new Error('Need 1 gold to use Graveyard.');
+  if (player.gold < 1) fail('err.needGoldGraveyard');
 
   state.players[playerIndex] = {
     ...player,
     gold: player.gold - 1,
     hand: [...player.hand, state.pendingGraveyard.card],
   };
-  addLog(state, `${player.name} uses Graveyard to recover ${state.pendingGraveyard.card.name} for 1 gold.`);
+  addLog(state, 'graveyard.recovers', { player: player.name, district: state.pendingGraveyard.card.name });
   state.pendingGraveyard = null;
   return state;
 }
 
 function handleGraveyardPass(state: GameState, playerId: string): GameState {
-  if (!state.pendingGraveyard) throw new Error('No Graveyard decision pending.');
-  if (state.pendingGraveyard.playerId !== playerId) throw new Error('Not your Graveyard decision.');
+  if (!state.pendingGraveyard) fail('err.noGraveyardPending');
+  if (state.pendingGraveyard.playerId !== playerId) fail('err.notYourGraveyardDecision');
 
   state.districtDiscard.push(state.pendingGraveyard.card);
   state.pendingGraveyard = null;
@@ -1222,8 +1223,8 @@ function handleGraveyardPass(state: GameState, playerId: string): GameState {
 function handleLaboratoryDiscard(state: GameState, playerId: string, cardIndex: number): GameState {
   const playerIndex = validateSpecialBuilding(state, playerId, 'Laboratory');
   const player = state.players[playerIndex];
-  if (player.hand.length === 0) throw new Error('No cards to discard.');
-  if (cardIndex < 0 || cardIndex >= player.hand.length) throw new Error('Invalid card index.');
+  if (player.hand.length === 0) fail('err.noCardsToDiscard');
+  if (cardIndex < 0 || cardIndex >= player.hand.length) fail('err.invalidCardIndex');
 
   const discarded = player.hand[cardIndex];
   const newHand = [...player.hand];
@@ -1232,42 +1233,42 @@ function handleLaboratoryDiscard(state: GameState, playerId: string, cardIndex: 
 
   state.players[playerIndex] = { ...player, gold: player.gold + 2, hand: newHand };
   state.turnState!.specialBuildingsUsed.push('Laboratory');
-  addLog(state, `${player.name} uses Laboratory: discards ${discarded.name} for 2 gold.`);
+  addLog(state, 'laboratory.use', { player: player.name, district: discarded.name });
   return state;
 }
 
 function handleSmithyDraw(state: GameState, playerId: string): GameState {
   const playerIndex = validateSpecialBuilding(state, playerId, 'Smithy');
   const player = state.players[playerIndex];
-  if (player.gold < 2) throw new Error('Need at least 2 gold to use Smithy.');
+  if (player.gold < 2) fail('err.needGoldSmithy');
 
   const drawn = drawCards(state, 3);
   state.players[playerIndex] = { ...player, gold: player.gold - 2, hand: [...player.hand, ...drawn] };
   state.turnState!.specialBuildingsUsed.push('Smithy');
-  addLog(state, `${player.name} uses Smithy: pays 2 gold, draws ${drawn.length} cards.`);
+  addLog(state, 'smithy.use', { player: player.name, count: drawn.length });
   return state;
 }
 
 function validateSpecialBuilding(state: GameState, playerId: string, building: string): number {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
-  if (!state.turnState) throw new Error('No active turn.');
-  if (state.turnState.playerId !== playerId) throw new Error('Not your turn.');
-  if (state.turnState.isBewitchedTurn) throw new Error('A bewitched player cannot use district powers.');
-  if (state.turnState.specialBuildingsUsed.includes(building)) throw new Error(`${building} already used this turn.`);
+  if (playerIndex === -1) fail('err.playerNotFound');
+  if (!state.turnState) fail('err.noActiveTurn');
+  if (state.turnState.playerId !== playerId) fail('err.notYourTurn');
+  if (state.turnState.isBewitchedTurn) fail('err.bewitchedCannotUseDistrict');
+  if (state.turnState.specialBuildingsUsed.includes(building)) fail('err.buildingAlreadyUsed', { district: building });
   if (!state.players[playerIndex].city.some(d => d.name === building)) {
-    throw new Error(`You do not have ${building} built.`);
+    fail('err.buildingNotOwned', { district: building });
   }
   return playerIndex;
 }
 
 function handleCollectIncome(state: GameState, playerId: string): GameState {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
-  if (!state.turnState) throw new Error('No active turn.');
-  if (state.turnState.playerId !== playerId) throw new Error('Not your turn.');
-  if (state.turnState.isBewitchedTurn) throw new Error('A bewitched player cannot use their power.');
-  if (state.turnState.incomeCollected) throw new Error('Income already collected this turn.');
+  if (playerIndex === -1) fail('err.playerNotFound');
+  if (!state.turnState) fail('err.noActiveTurn');
+  if (state.turnState.playerId !== playerId) fail('err.notYourTurn');
+  if (state.turnState.isBewitchedTurn) fail('err.bewitchedCannotUsePower');
+  if (state.turnState.incomeCollected) fail('err.incomeAlreadyCollected');
   state = collectIncome(state, playerIndex, state.turnState.effectiveCharacter);
   state.turnState!.incomeCollected = true;
   return state;
@@ -1275,10 +1276,10 @@ function handleCollectIncome(state: GameState, playerId: string): GameState {
 
 function handleSkipPower(state: GameState, playerId: string): GameState {
   const turn = state.turnState;
-  if (!turn) throw new Error('No active turn.');
-  if (turn.playerId !== playerId) throw new Error('Not your turn.');
+  if (!turn) fail('err.noActiveTurn');
+  if (turn.playerId !== playerId) fail('err.notYourTurn');
   const name = turn.effectiveCharacter.name;
-  if (name === 'Witch' || name === 'Emperor') throw new Error(`The ${name} must use their power.`);
+  if (name === 'Witch' || name === 'Emperor') fail('err.mustUsePower', { character: name });
   turn.powerUsed = true;
   return state;
 }
@@ -1287,15 +1288,15 @@ function handleSkipPower(state: GameState, playerId: string): GameState {
 
 function handleEndTurn(state: GameState, playerId: string): GameState {
   const turn = state.turnState;
-  if (!turn) throw new Error('No active turn.');
-  if (turn.playerId !== playerId) throw new Error('Not your turn.');
-  if (!turn.actionTaken) throw new Error('Must take an action before ending turn.');
+  if (!turn) fail('err.noActiveTurn');
+  if (turn.playerId !== playerId) fail('err.notYourTurn');
+  if (!turn.actionTaken) fail('err.mustActBeforeEnding');
   // The Witch must bewitch — unless there is nobody left she is allowed to name.
   if (turn.effectiveCharacter.name === 'Witch' && !turn.powerUsed && targetableRanks(state, 2).length > 0) {
-    throw new Error('The Witch must bewitch a character.');
+    fail('err.witchMustBewitch');
   }
   if (turn.effectiveCharacter.name === 'Emperor' && !turn.powerUsed) {
-    throw new Error('The Emperor must pass the Crown.');
+    fail('err.emperorMustCrown');
   }
   return endTurnInternal(state);
 }
@@ -1308,7 +1309,7 @@ function endTurnInternal(state: GameState): GameState {
   if (turn.effectiveCharacter.name === 'Alchemist' && turn.goldSpentBuilding > 0 && playerIndex !== -1) {
     const player = state.players[playerIndex];
     state.players[playerIndex] = { ...player, gold: player.gold + turn.goldSpentBuilding };
-    addLog(state, `${player.name} (Alchemist) gets back ${turn.goldSpentBuilding} gold spent on building.`);
+    addLog(state, 'alchemist.refund', { player: player.name, amount: turn.goldSpentBuilding });
   }
 
   const wasBewitchedTurn = turn.isBewitchedTurn;
@@ -1331,7 +1332,7 @@ function endRound(state: GameState): GameState {
     if (!held) {
       const witch = state.players.find(p => p.id === state.witchPlayerId);
       const character = state.cast.find(c => c.rank === state.bewitchedCharacter);
-      addLog(state, `Nobody was playing the ${character?.name} — ${witch?.name} (Witch) does not resume their turn.`);
+      addLog(state, 'witch.noResume', { character: character?.name ?? '', player: witch?.name ?? '' });
     }
   }
 
@@ -1340,7 +1341,7 @@ function endRound(state: GameState): GameState {
     const rank4 = state.players.find(p => p.characterCard?.rank === 4);
     if (rank4 && rank4.characterCard!.name !== 'Emperor') {
       state.crownPlayerIndex = state.players.findIndex(p => p.id === rank4.id);
-      addLog(state, `${rank4.name} (killed ${rank4.characterCard!.name}'s heir) takes the Crown.`);
+      addLog(state, 'heir.takesCrown', { player: rank4.name, character: rank4.characterCard!.name });
     }
   }
 
@@ -1362,7 +1363,7 @@ function endGame(state: GameState): GameState {
   state.scores = calculateScores(state, false);
   const winner = determineWinner(state.scores!, state.players);
 
-  addLog(state, `Game over! ${winner.playerName} wins with ${winner.totalPoints} points!`);
+  addLog(state, 'game.over', { player: winner.playerName, points: winner.totalPoints });
   return state;
 }
 
@@ -1370,10 +1371,10 @@ function endGame(state: GameState): GameState {
 
 function validateTurnAction(state: GameState, playerId: string): number {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
-  if (!state.turnState) throw new Error('No active turn.');
-  if (state.turnState.playerId !== playerId) throw new Error('Not your turn.');
-  if (state.turnState.actionTaken) throw new Error('Action already taken.');
+  if (playerIndex === -1) fail('err.playerNotFound');
+  if (!state.turnState) fail('err.noActiveTurn');
+  if (state.turnState.playerId !== playerId) fail('err.notYourTurn');
+  if (state.turnState.actionTaken) fail('err.actionAlreadyTaken');
   return playerIndex;
 }
 
@@ -1392,25 +1393,25 @@ function targetableRanks(state: GameState, minRank: number): number[] {
 
 function validateTargetRank(state: GameState, rank: number, minRank: number): void {
   if (rank < minRank || rank > state.maxRank) {
-    throw new Error(`Invalid target. Must be rank ${minRank}-${state.maxRank}.`);
+    fail('err.invalidTargetRank', { min: minRank, max: state.maxRank });
   }
   const removed = state.removedCharactersFaceUp.find(c => c.rank === rank);
   if (removed) {
-    throw new Error(`The ${removed.name} was removed face up and is not in play this round.`);
+    fail('err.removedFaceUp', { character: removed.name });
   }
 }
 
 function validatePowerUse(state: GameState, playerId: string, expectedCharacter: string): number {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) throw new Error('Player not found.');
+  if (playerIndex === -1) fail('err.playerNotFound');
   const turn = state.turnState;
-  if (!turn) throw new Error('No active turn.');
-  if (turn.playerId !== playerId) throw new Error('Not your turn.');
-  if (turn.isBewitchedTurn) throw new Error('A bewitched player cannot use their power.');
+  if (!turn) fail('err.noActiveTurn');
+  if (turn.playerId !== playerId) fail('err.notYourTurn');
+  if (turn.isBewitchedTurn) fail('err.bewitchedCannotUsePower');
   if (turn.effectiveCharacter.name !== expectedCharacter) {
-    throw new Error(`You are not the ${expectedCharacter}.`);
+    fail('err.notThatCharacter', { character: expectedCharacter });
   }
-  if (turn.powerUsed) throw new Error('Power already used this turn.');
+  if (turn.powerUsed) fail('err.powerAlreadyUsed');
   return playerIndex;
 }
 
@@ -1438,14 +1439,13 @@ export function processAction(state: GameState, action: GameAction): GameState {
   state = cloneState(state);
 
   if (hasPendingDecision(state) && !PENDING_ACTIONS.has(action.type)) {
-    const what = state.pendingGraveyard ? 'Graveyard'
-      : state.pendingMagistrate ? 'warrant'
-      : 'blackmail';
-    throw new Error(`Waiting for the pending ${what} decision.`);
+    fail(state.pendingGraveyard ? 'err.waitingGraveyard'
+      : state.pendingMagistrate ? 'err.waitingWarrant'
+      : 'err.waitingBlackmail');
   }
 
   const requireTurnPhase = () => {
-    if (state.phase !== 'playerTurns') throw new Error('Not in player turns phase.');
+    if (state.phase !== 'playerTurns') fail('err.notInTurnPhase');
   };
 
   switch (action.type) {
@@ -1453,7 +1453,7 @@ export function processAction(state: GameState, action: GameAction): GameState {
       return state;
 
     case 'CHOOSE_CHARACTER':
-      if (state.phase !== 'chooseCharacters') throw new Error('Not in character choosing phase.');
+      if (state.phase !== 'chooseCharacters') fail('err.notInCharacterPhase');
       return handleChooseCharacter(state, action.playerId, action.characterRank);
 
     case 'TAKE_GOLD':
@@ -1564,7 +1564,7 @@ export function processAction(state: GameState, action: GameAction): GameState {
 
     case 'WARLORD_PASS':
       requireTurnPhase();
-      if (!state.turnState) throw new Error('No active turn.');
+      if (!state.turnState) fail('err.noActiveTurn');
       state.turnState.powerUsed = true;
       return state;
 
@@ -1605,71 +1605,60 @@ export function processAction(state: GameState, action: GameAction): GameState {
 
 // ── Round events builder ────────────────────────────────────────
 
-const EVENT_PATTERNS: {
-  re: RegExp;
-  build: (m: RegExpMatchArray) => RoundEvent;
-}[] = [
-  {
-    re: /^(.+?) \(Assassin\) kills the (.+?)!/,
-    build: m => ({ type: 'murder', actorName: m[1], actorCharacter: 'Assassin', targetCharacter: m[2] }),
-  },
-  {
-    re: /^(.+?) \(Witch\) bewitches the (.+?)!/,
-    build: m => ({ type: 'bewitch', actorName: m[1], actorCharacter: 'Witch', targetCharacter: m[2] }),
-  },
-  {
-    re: /^(.+?) \(Thief\) targets the (.+?) for robbery/,
-    build: m => ({ type: 'steal', actorName: m[1], actorCharacter: 'Thief', targetCharacter: m[2] }),
-  },
-  {
-    re: /^(.+?) \(Magician\) swaps hands with (.+?)\./,
-    build: m => ({ type: 'swap', actorName: m[1], actorCharacter: 'Magician', targetPlayerName: m[2] }),
-  },
-  {
-    re: /^(.+?) \(Warlord\) destroys (.+?) in (.+?)'s city/,
-    build: m => ({ type: 'destroy', actorName: m[1], actorCharacter: 'Warlord', targetPlayerName: m[3], detail: m[2] }),
-  },
-  {
-    re: /^(.+?) \(Magistrate\) confiscates (.+?) from (.+?)!/,
-    build: m => ({ type: 'confiscate', actorName: m[1], actorCharacter: 'Magistrate', targetPlayerName: m[3], detail: m[2] }),
-  },
-  {
-    re: /^(.+?) \(Marshal\) seizes (.+?) from (.+?) for/,
-    build: m => ({ type: 'seize', actorName: m[1], actorCharacter: 'Marshal', targetPlayerName: m[3], detail: m[2] }),
-  },
-  {
-    re: /^(.+?) \(Diplomat\) exchanges (.+?) for (.+?)'s (.+?)(?: \(|\.)/,
-    build: m => ({ type: 'exchange', actorName: m[1], actorCharacter: 'Diplomat', targetPlayerName: m[3], detail: `${m[2]} ↔ ${m[4]}` }),
-  },
-  {
-    re: /^(.+?) \(Spy\) inspects (.+?)'s hand/,
-    build: m => ({ type: 'spy', actorName: m[1], actorCharacter: 'Spy', targetPlayerName: m[2] }),
-  },
-  {
-    re: /^(.+?) reveals the real threat and takes (\d+) gold from (.+?)!/,
-    build: m => ({ type: 'blackmail', actorName: m[1], actorCharacter: 'Blackmailer', targetPlayerName: m[3], detail: `${m[2]} gold` }),
-  },
-];
-
+/**
+ * The headline events of the round, read straight off the log keys. This used
+ * to pattern-match English sentences, which broke the moment the log stopped
+ * being English.
+ */
 function buildRoundEvents(state: GameState): RoundEvent[] {
   const events: RoundEvent[] = [];
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
+  const num = (v: unknown) => (typeof v === 'number' ? v : 0);
 
   for (const entry of currentRoundEntries(state)) {
-    const msg = entry.message;
+    const p = entry.params ?? {};
 
-    for (const { re, build } of EVENT_PATTERNS) {
-      const m = msg.match(re);
-      if (m) events.push(build(m));
-    }
-
-    // Fill in the victim once the Thief actually collects.
-    const stolenMatch = msg.match(/^(.+?) \(Thief\) steals (\d+) gold from (.+?)!/);
-    if (stolenMatch) {
-      const existing = events.find(e => e.type === 'steal' && e.actorName === stolenMatch[1]);
-      if (existing) {
-        existing.targetPlayerName = stolenMatch[3];
-        existing.detail = `${stolenMatch[2]} gold stolen`;
+    switch (entry.key) {
+      case 'assassin.kills':
+        events.push({ type: 'murder', actorName: str(p.player), actorCharacter: 'Assassin', targetCharacter: str(p.character) });
+        break;
+      case 'witch.bewitches':
+        events.push({ type: 'bewitch', actorName: str(p.player), actorCharacter: 'Witch', targetCharacter: str(p.character) });
+        break;
+      case 'thief.targets':
+        events.push({ type: 'steal', actorName: str(p.player), actorCharacter: 'Thief', targetCharacter: str(p.character) });
+        break;
+      case 'thief.steals': {
+        // Fill in the victim on the existing "targets" event once it resolves.
+        const existing = events.find(e => e.type === 'steal' && e.actorName === str(p.player));
+        if (existing) {
+          existing.targetPlayerName = str(p.target);
+          existing.detail = String(num(p.amount));
+        }
+        break;
       }
+      case 'magician.swaps':
+        events.push({ type: 'swap', actorName: str(p.player), actorCharacter: 'Magician', targetPlayerName: str(p.target) });
+        break;
+      case 'warlord.destroys':
+        events.push({ type: 'destroy', actorName: str(p.player), actorCharacter: 'Warlord', targetPlayerName: str(p.target), detail: str(p.district) });
+        break;
+      case 'magistrate.confiscates':
+        events.push({ type: 'confiscate', actorName: str(p.player), actorCharacter: 'Magistrate', targetPlayerName: str(p.target), detail: str(p.district) });
+        break;
+      case 'marshal.seizes':
+        events.push({ type: 'seize', actorName: str(p.player), actorCharacter: 'Marshal', targetPlayerName: str(p.target), detail: str(p.district) });
+        break;
+      case 'diplomat.exchanges':
+      case 'diplomat.exchangesPaid':
+        events.push({ type: 'exchange', actorName: str(p.player), actorCharacter: 'Diplomat', targetPlayerName: str(p.target), detail: str(p.district), detail2: str(p.district2) });
+        break;
+      case 'spy.inspects':
+        events.push({ type: 'spy', actorName: str(p.player), actorCharacter: 'Spy', targetPlayerName: str(p.target) });
+        break;
+      case 'blackmail.revealsReal':
+        events.push({ type: 'blackmail', actorName: str(p.player), actorCharacter: 'Blackmailer', targetPlayerName: str(p.target), detail: String(num(p.amount)) });
+        break;
     }
   }
 
@@ -1677,9 +1666,10 @@ function buildRoundEvents(state: GameState): RoundEvent[] {
 }
 
 /** Log entries belonging to the round currently in progress. */
-export function currentRoundEntries(state: GameState) {
-  const marker = `Round ${state.round}:`;
-  const startIndex = state.log.findIndex(e => e.message.startsWith(marker));
+export function currentRoundEntries(state: GameState): LogEntry[] {
+  const startIndex = state.log.findIndex(
+    e => e.key === 'round.selectionBegins' && e.params?.round === state.round
+  );
   return startIndex === -1 ? state.log : state.log.slice(startIndex);
 }
 

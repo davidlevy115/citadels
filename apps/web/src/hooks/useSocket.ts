@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import type { Socket } from 'socket.io-client';
 import type { GameAction, BotTurnSummary } from '@citadels/game-logic';
+import type { WireError } from '@/lib/i18n';
 import { getSocket } from '@/lib/socket';
 import { useGameStore } from './useGameState';
 
@@ -41,12 +42,12 @@ export function useSocket() {
       setTurnSummary(summary);
     });
 
-    socket.on('error', (msg: string) => {
-      setError(msg);
+    socket.on('error', (error: WireError) => {
+      setError(error);
     });
 
-    socket.on('actionError', (msg: string) => {
-      setActionError(msg);
+    socket.on('actionError', (error: WireError) => {
+      setActionError(error);
     });
 
     socket.on('savedGames', (games: string[]) => {

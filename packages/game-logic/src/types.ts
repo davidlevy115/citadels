@@ -1,3 +1,7 @@
+import type { LogEntry } from './log.js';
+
+export type { LogEntry } from './log.js';
+
 // ── District types ──────────────────────────────────────────────
 
 export type DistrictType = 'noble' | 'religious' | 'trade' | 'military' | 'special';
@@ -240,10 +244,7 @@ export interface PlayerScore {
   totalPoints: number;
 }
 
-export interface LogEntry {
-  message: string;
-  timestamp: number;
-}
+
 
 // ── Config ──────────────────────────────────────────────────────
 
@@ -315,7 +316,8 @@ export interface RoundEvent {
   actorCharacter: string;
   targetCharacter?: string;       // character name targeted (Assassin/Thief/Witch)
   targetPlayerName?: string;      // player name targeted (Magician/Warlord)
-  detail?: string;                // e.g. district name destroyed
+  detail?: string;                // district name, or an amount of gold
+  detail2?: string;               // second district name (Diplomat exchange)
 }
 
 /** What a player did on one turn — shown as a transient popup. */
@@ -325,7 +327,7 @@ export interface BotTurnSummary {
   characterRank: number;
   /** The round the turn belonged to. */
   round: number;
-  actions: string[];
+  actions: LogEntry[];
 }
 
 export interface PlayerPublicInfo {
