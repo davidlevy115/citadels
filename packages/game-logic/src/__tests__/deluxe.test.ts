@@ -300,6 +300,8 @@ describe('Deluxe powers', () => {
   it('Witch bewitches, the target is stunted, and the Witch resumes', () => {
     let state = createGame(botConfig(4, 'cunning-agents'));
     state.phase = 'playerTurns';
+    // Nothing removed face up, so rank 6 is a legal target.
+    state.removedCharactersFaceUp = [];
     const witch = state.cast.find(c => c.name === 'Witch')!;
     const rank6 = state.cast.find(c => c.rank === 6)!;
     state.players[0].characterCard = witch;
@@ -395,7 +397,7 @@ describe('Deluxe powers', () => {
     state = processAction(state, { type: 'TAKE_GOLD', playerId: me });
     state = processAction(state, { type: 'WITCH_BEWITCH', playerId: me, targetRank: 6 });
 
-    const { state: after, stuck } = playOut(state, 300);
+    const { state: after, stuck } = playOut(state);
     expect(stuck).toBeNull();
     expect(after.log.some(l => /Nobody was playing the .* does not resume their turn/.test(l.message)))
       .toBe(true);
