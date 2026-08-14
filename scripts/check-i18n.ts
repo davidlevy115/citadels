@@ -16,6 +16,21 @@ import { en } from '../apps/web/src/lib/i18n/en.js';
 import { es } from '../apps/web/src/lib/i18n/es.js';
 
 const LOCALES = ['en', 'es'] as const;
+
+/**
+ * Every parameter name any template might use. Shared by all three passes so a
+ * gap in this list cannot masquerade as a translation bug.
+ */
+const ALL_PARAMS = {
+  player: 'Alice', player2: 'Bob', target: 'Bob', donor: 'Bob', lender: 'Bob',
+  character: 'Witch', character2: 'King', district: 'Tavern', district2: 'Castle',
+  districtType: 'trade', characters: ['Witch', 'King'], type: 'Trade',
+  count: 3, amount: 3, total: 4, cost: 5, gold: 6, cards: 7, round: 1, rank: 4,
+  limit: 8, pot: 2, points: 25, matches: 1, discarded: 2, drawn: 2, price: 3,
+  paid: 1, ranks: '2, 5', id: 'ABCDEF', joined: 1, max: 3, min: 2,
+  shortfall: 2, kind: 'a bluff', detail: 'boom',
+} as const;
+
 const problems: string[] = [];
 
 /** Any {placeholder} left behind means a template and its params disagree. */
@@ -60,41 +75,19 @@ for (const locale of LOCALES) {
   for (const key of Object.keys(en.log)) {
     if (seenKeys.has(key)) continue;
     // Feed a generous set of params so any placeholder can resolve.
-    const rendered = t.log({
-      key: key as any,
-      params: {
-        player: 'Alice', player2: 'Bob', target: 'Bob', donor: 'Bob', lender: 'Bob',
-        character: 'Witch', character2: 'King', district: 'Tavern', district2: 'Castle',
-        districtType: 'trade', characters: ['Witch', 'King'],
-        count: 2, amount: 3, total: 4, cost: 5, gold: 6, cards: 7, round: 1, rank: 4,
-        limit: 8, pot: 2, points: 25, matches: 1, discarded: 2, drawn: 2, price: 3,
-        paid: 1, ranks: '2, 5', id: 'ABCDEF',
-      },
-      timestamp: 0,
-    });
+    const rendered = t.log({ key: key as any, params: { ...ALL_PARAMS }, timestamp: 0 });
     check(`${locale}/log-unseen/${key}`, rendered);
   }
 
   // 3. Every error code.
   for (const code of Object.keys(en.err)) {
-    const rendered = t.error({
-      code: code as any,
-      params: {
-        player: 'Alice', character: 'Witch', district: 'Tavern', amount: 3, cost: 5,
-        gold: 2, max: 3, min: 2, total: 4, detail: 'boom',
-      },
-    });
+    const rendered = t.error({ code: code as any, params: { ...ALL_PARAMS } });
     check(`${locale}/err/${code}`, rendered);
   }
 
   // 4. Every UI string (params supplied generously).
   for (const key of Object.keys(en.ui)) {
-    const rendered = t(key as any, {
-      count: 3, joined: 1, total: 4, round: 2, amount: 5, points: 10, rank: 4,
-      player: 'Alice', target: 'Bob', character: 'Witch', district: 'Tavern',
-      district2: 'Castle', type: 'Trade', ranks: '2, 5',
-      cost: 3, gold: 2, cards: 1, shortfall: 2, price: 3, kind: 'a bluff', id: 'ABCDEF',
-    });
+    const rendered = t(key as any, { ...ALL_PARAMS });
     check(`${locale}/ui/${key}`, rendered);
   }
 

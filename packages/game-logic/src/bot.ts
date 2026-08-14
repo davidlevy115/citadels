@@ -23,6 +23,18 @@ export function getBotAction(state: GameState, botPlayerId: string): GameAction 
     return { type: 'MAGISTRATE_CONFISCATE', playerId: botPlayerId };
   }
 
+  if (actions.canSeerGive && state.pendingSeer) {
+    // Hand back the cheapest cards and keep the best of what was taken.
+    const ranked = player.hand
+      .map((card, cardIndex) => ({ card, cardIndex }))
+      .sort((a, b) => a.card.cost - b.card.cost);
+    const assignments = state.pendingSeer.recipientIds.map((toPlayerId, i) => ({
+      toPlayerId,
+      cardIndex: ranked[i].cardIndex,
+    }));
+    return { type: 'SEER_GIVE', playerId: botPlayerId, assignments };
+  }
+
   if (actions.canBlackmailDecide && state.pendingBlackmail) {
     const pending = state.pendingBlackmail;
     if (pending.stage === 'bribe') {

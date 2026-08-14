@@ -94,6 +94,11 @@ export type ErrorCode =
   | 'err.waitingGraveyard'
   | 'err.waitingWarrant'
   | 'err.waitingBlackmail'
+  | 'err.waitingSeer'
+  | 'err.noSeerPending'
+  | 'err.seerGiveOnePerPlayer'
+  | 'err.seerNotOwed'
+  | 'err.seerCardTwice'
   // Lobby / connection level, raised by the server rather than the rules
   | 'err.needTwoPlayers'
   | 'err.roomNotFound'

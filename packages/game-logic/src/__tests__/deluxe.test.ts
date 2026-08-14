@@ -507,14 +507,80 @@ describe('Deluxe powers', () => {
     expect(state.turnState!.districtsBuilt).toBe(0);   // did not consume the limit
   });
 
-  it('Seer takes a card from everyone and gives one back', () => {
+  it('Seer takes a card from everyone, then the player chooses what goes back', () => {
     let state = turnFor('tenacious-delegates', 'Seer');
     const me = state.players[0].id;
     const handSizes = state.players.map(p => p.hand.length);
+
     state = processAction(state, { type: 'TAKE_GOLD', playerId: me });
     state = processAction(state, { type: 'SEER_TAKE', playerId: me });
-    // Everyone ends with the hand size they started with.
+
+    // Taking alone does not hand anything back — that is now a decision.
+    expect(state.pendingSeer?.playerId).toBe(me);
+    expect(state.pendingSeer?.recipientIds).toEqual(state.players.slice(1).map(p => p.id));
+    expect(state.players[0].hand.length).toBe(handSizes[0] + 3);
+    expect(hasPendingDecision(state)).toBe(true);
+    expect(getAvailableActions(state, me).canSeerGive).toBe(true);
+
+    // ...and it blocks everything else until answered.
+    expect(() => processAction(state, { type: 'END_TURN', playerId: me })).toThrow('err.waitingSeer');
+
+    // The Seer picks exactly which card goes to which player.
+    const hand = state.players[0].hand;
+    const chosen = [
+      { toPlayerId: state.players[1].id, cardIndex: 0 },
+      { toPlayerId: state.players[2].id, cardIndex: 2 },
+      { toPlayerId: state.players[3].id, cardIndex: 4 },
+    ];
+    const expectedCards = chosen.map(c => hand[c.cardIndex].id);
+
+    state = processAction(state, { type: 'SEER_GIVE', playerId: me, assignments: chosen });
+
+    expect(state.pendingSeer).toBeNull();
     expect(state.players.map(p => p.hand.length)).toEqual(handSizes);
+    // Each player got precisely the card the Seer picked for them.
+    chosen.forEach((c, i) => {
+      const recipient = state.players.find(p => p.id === c.toPlayerId)!;
+      expect(recipient.hand.some(card => card.id === expectedCards[i])).toBe(true);
+    });
+  });
+
+  it('Seer rejects a handout that is not one card per player', () => {
+    let state = turnFor('tenacious-delegates', 'Seer');
+    const me = state.players[0].id;
+    state = processAction(state, { type: 'TAKE_GOLD', playerId: me });
+    state = processAction(state, { type: 'SEER_TAKE', playerId: me });
+
+    const [a, b, c] = state.players.slice(1).map(p => p.id);
+
+    // Too few recipients
+    expect(() => processAction(state, {
+      type: 'SEER_GIVE', playerId: me, assignments: [{ toPlayerId: a, cardIndex: 0 }],
+    })).toThrow('err.seerGiveOnePerPlayer');
+
+    // The same card to two players
+    expect(() => processAction(state, {
+      type: 'SEER_GIVE', playerId: me, assignments: [
+        { toPlayerId: a, cardIndex: 0 }, { toPlayerId: b, cardIndex: 0 }, { toPlayerId: c, cardIndex: 1 },
+      ],
+    })).toThrow('err.seerCardTwice');
+
+    // Somebody who was not taken from
+    expect(() => processAction(state, {
+      type: 'SEER_GIVE', playerId: me, assignments: [
+        { toPlayerId: a, cardIndex: 0 }, { toPlayerId: b, cardIndex: 1 }, { toPlayerId: me, cardIndex: 2 },
+      ],
+    })).toThrow('err.seerNotOwed');
+  });
+
+  it('Seer with nobody to take from needs no handout', () => {
+    let state = turnFor('tenacious-delegates', 'Seer');
+    const me = state.players[0].id;
+    state.players.forEach((p, i) => { if (i > 0) p.hand = []; });
+    state = processAction(state, { type: 'TAKE_GOLD', playerId: me });
+    state = processAction(state, { type: 'SEER_TAKE', playerId: me });
+    expect(state.pendingSeer).toBeNull();
+    expect(hasPendingDecision(state)).toBe(false);
   });
 
   it('Emperor hands the Crown on and takes a resource', () => {

@@ -42,10 +42,12 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
   const isMyGraveyardDecision = view.pendingGraveyard?.playerId === me?.id;
   const isMyMagistrateDecision = view.pendingMagistrate?.playerId === me?.id;
   const isMyBlackmailDecision = view.pendingBlackmail?.playerId === me?.id;
+  const isMySeerDecision = view.pendingSeer?.playerId === me?.id;
   const somebodyElseIsDeciding =
     (view.pendingGraveyard && !isMyGraveyardDecision) ||
     (view.pendingMagistrate && !isMyMagistrateDecision) ||
-    (view.pendingBlackmail && !isMyBlackmailDecision);
+    (view.pendingBlackmail && !isMyBlackmailDecision) ||
+    (view.pendingSeer && !isMySeerDecision);
 
   // The Witch plays somebody else's character, so the banner follows the turn.
   const calledCharacter =
@@ -103,6 +105,14 @@ export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSu
           cast={view.cast}
           currentRank={view.currentCharacterRank}
           onAction={onAction}
+        />
+      )}
+      {view.pendingSeer && isMySeerDecision && (
+        <SeerOverlay
+          recipients={view.pendingSeer.recipients}
+          hand={view.myHand}
+          onGive={(assignments) => onAction({ type: 'SEER_GIVE', assignments })}
+          onDetail={(card) => setDetailTarget({ type: 'district', card })}
         />
       )}
       {view.phase === 'gameOver' && view.scores && <GameOverOverlay view={view} />}
@@ -625,6 +635,129 @@ function BlackmailOverlay({ pending, myThreats, cast, currentRank, onAction }: {
             </div>
           </>
         )}
+      </div>
+    </motion.div>
+  );
+}
+
+/**
+ * The Seer has taken a card from each player and must now decide, card by card,
+ * who gets what back. Any card in hand may go to any of them — including the
+ * one that was just taken from somebody else.
+ */
+function SeerOverlay({ recipients, hand, onGive, onDetail }: {
+  recipients: { id: string; name: string }[];
+  hand: DistrictCard[];
+  onGive: (assignments: { toPlayerId: string; cardIndex: number }[]) => void;
+  onDetail: (card: DistrictCard) => void;
+}) {
+  const t = useT();
+  const [selectedCard, setSelectedCard] = useState<number | null>(null);
+  // recipient id → index into the hand
+  const [assigned, setAssigned] = useState<Record<string, number>>({});
+
+  const takenCards = new Set(Object.values(assigned));
+  const remaining = recipients.length - Object.keys(assigned).length;
+
+  const assign = (recipientId: string) => {
+    if (selectedCard === null) return;
+    setAssigned(prev => {
+      const next = { ...prev };
+      // A card can only go to one player, so drop any earlier use of it.
+      for (const [id, index] of Object.entries(next)) {
+        if (index === selectedCard) delete next[id];
+      }
+      next[recipientId] = selectedCard;
+      return next;
+    });
+    setSelectedCard(null);
+  };
+
+  const clear = (recipientId: string) => {
+    setAssigned(prev => {
+      const next = { ...prev };
+      delete next[recipientId];
+      return next;
+    });
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-slate-800 rounded-xl p-5 border border-indigo-600/60 max-w-lg w-full max-h-[90dvh] overflow-y-auto">
+        <h2 className="text-base font-bold text-center mb-1 text-indigo-300">{t('seer.title')}</h2>
+        <p className="text-xs text-slate-400 text-center mb-4">
+          {t('seer.prompt', { count: recipients.length })}
+        </p>
+
+        {/* Hand — pick a card first */}
+        <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">{t('seer.yourHand')}</p>
+        <div className="flex flex-wrap gap-1.5 justify-center mb-4">
+          {hand.map((card, i) => {
+            const used = takenCards.has(i);
+            const isSelected = selectedCard === i;
+            return (
+              <button
+                key={card.id}
+                onClick={() => setSelectedCard(isSelected ? null : i)}
+                className={`rounded-lg transition-all ${
+                  isSelected ? 'ring-2 ring-cyan-400 scale-105' : used ? 'opacity-30' : 'hover:brightness-110'
+                }`}
+              >
+                <DistrictCardView card={card} small disabled onDetail={() => onDetail(card)} />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Recipients — then say who gets it */}
+        <div className="space-y-1.5 mb-4">
+          {recipients.map(recipient => {
+            const cardIndex = assigned[recipient.id];
+            const card = cardIndex === undefined ? null : hand[cardIndex];
+            return (
+              <div key={recipient.id} className="flex items-center gap-2">
+                <span className="text-xs text-slate-300 w-24 shrink-0 truncate">
+                  {t('seer.giveTo', { player: recipient.name })}
+                </span>
+                <button
+                  onClick={() => assign(recipient.id)}
+                  disabled={selectedCard === null && !card}
+                  className={`flex-1 px-3 py-2 rounded-lg text-xs text-left border transition-colors ${
+                    card
+                      ? 'bg-indigo-900/50 border-indigo-600 text-indigo-200'
+                      : selectedCard !== null
+                        ? 'bg-slate-700 border-cyan-600/60 text-cyan-300 hover:bg-slate-600'
+                        : 'bg-slate-700/40 border-slate-600/50 text-slate-500'
+                  }`}
+                >
+                  {card ? `${t.district(card.name)} (${card.cost})` : t('seer.pickCard')}
+                </button>
+                {card && (
+                  <button
+                    onClick={() => clear(recipient.id)}
+                    className="text-[10px] text-slate-500 hover:text-slate-300 shrink-0"
+                  >
+                    {t('seer.clear')}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="text-center">
+          <button
+            onClick={() => onGive(recipients.map(r => ({ toPlayerId: r.id, cardIndex: assigned[r.id] })))}
+            disabled={remaining > 0}
+            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-sm font-bold text-white transition-colors shadow-lg"
+          >
+            {t('seer.confirm')}
+          </button>
+          {remaining > 0 && (
+            <p className="text-[10px] text-slate-500 mt-1.5">{t('seer.remaining', { count: remaining })}</p>
+          )}
+        </div>
       </div>
     </motion.div>
   );

@@ -67,6 +67,7 @@ export type LogKey =
   | 'wizard.takesAndBuilds'
   | 'wizard.takesCard'
   | 'seer.takes'
+  | 'seer.gives'
   // Rank 4
   | 'emperor.crownsGold'
   | 'emperor.crownsCard'

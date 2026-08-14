@@ -60,7 +60,7 @@ Pure TypeScript state machine — zero UI/network dependencies, fully testable.
 
 **`TurnState.playerId` / `effectiveCharacter`**: the active player is `turnState.playerId`, *not* whoever holds `currentCharacterRank`. The Witch bewitches a character, that player takes a stunted turn (`isBewitchedTurn`), and then the Witch replays it herself (`isWitchResume`) with `effectiveCharacter` set to the bewitched card. All power logic keys off `effectiveCharacter`, never `player.characterCard`.
 
-**Pending decisions** block every other action: `pendingGraveyard`, `pendingMagistrate` (warrant confiscation) and `pendingBlackmail` (bribe, then reveal). Use `hasPendingDecision()` / `pendingDecisionPlayerId()` to find who must answer — bot drivers and the server loop both rely on these.
+**Pending decisions** block every other action: `pendingGraveyard`, `pendingMagistrate` (warrant confiscation), `pendingBlackmail` (bribe, then reveal) and `pendingSeer` (which card goes back to whom). The Seer's is the player's own decision mid-turn — it still blocks, which is harmless because it is their turn. Use `hasPendingDecision()` / `pendingDecisionPlayerId()` to find who must answer — bot drivers and the server loop both rely on these.
 
 **Special buildings** (Laboratory, Smithy, Graveyard, Observatory, Library) are handled in engine.ts with `specialBuildingsUsed: string[]` on `TurnState` to prevent double-use per turn.
 
@@ -68,7 +68,7 @@ Pure TypeScript state machine — zero UI/network dependencies, fully testable.
 
 **Targeting**: characters discarded face up are public and cannot be held by anyone, so `validateTargetRank()` rejects them for every naming power (Assassin, Witch, Magistrate, Thief, Blackmailer). Naming one used to silently waste the whole power — most painfully the Witch's, which loses her second turn. Bots filter the same way via `targetableRanks()` in `bot.ts`; the UI filters via `targetableRanks()` in `PowerActions.tsx`.
 
-**Deliberate simplifications**: the Seer's give-back cards are chosen automatically (cheapest first); Magistrate/Blackmailer markers are placed by naming ranks rather than dragging tokens.
+**Deliberate simplifications**: Magistrate/Blackmailer markers are placed by naming ranks rather than dragging tokens.
 
 ### Server (`apps/server/src/`)
 

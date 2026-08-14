@@ -107,6 +107,7 @@ export function createGame(config: GameConfig): GameState {
     pendingGraveyard: null,
     pendingMagistrate: null,
     pendingBlackmail: null,
+    pendingSeer: null,
 
     crownPlayerIndex: 0,
     firstToEightDistricts: null,
@@ -149,6 +150,7 @@ function startRemoveCharacters(state: GameState): GameState {
   state.blackmailerPlayerId = null;
   state.threatsResolved = [];
   state.revealedHands = [];
+  state.pendingSeer = null;
 
   for (const player of state.players) {
     player.characterCard = null;
@@ -865,42 +867,73 @@ function handleSeerTake(state: GameState, playerId: string): GameState {
   const playerIndex = validatePowerUse(state, playerId, 'Seer');
   const seer = state.players[playerIndex];
 
-  const donors: number[] = [];
+  const recipientIds: string[] = [];
   const taken: DistrictCard[] = [];
   for (let i = 0; i < state.players.length; i++) {
     if (i === playerIndex) continue;
     const p = state.players[i];
+    // A player with no cards neither gives one nor gets one back.
     if (p.hand.length === 0) continue;
     const pick = Math.floor(Math.random() * p.hand.length);
     const newHand = [...p.hand];
     const [card] = newHand.splice(pick, 1);
     state.players[i] = { ...p, hand: newHand };
     taken.push(card);
-    donors.push(i);
+    recipientIds.push(p.id);
   }
 
-  let hand = [...seer.hand, ...taken];
-
-  // Give one card back to each donor. The Seer keeps their best cards, so the
-  // cheapest ones go back out.
-  const givenBack: string[] = [];
-  for (const donorIndex of donors) {
-    if (hand.length === 0) break;
-    let worst = 0;
-    for (let i = 1; i < hand.length; i++) {
-      if (hand[i].cost < hand[worst].cost) worst = i;
-    }
-    const [card] = hand.splice(worst, 1);
-    state.players[donorIndex] = {
-      ...state.players[donorIndex],
-      hand: [...state.players[donorIndex].hand, card],
-    };
-    givenBack.push(state.players[donorIndex].name);
-  }
-
-  state.players[playerIndex] = { ...state.players[playerIndex], hand };
+  state.players[playerIndex] = { ...seer, hand: [...seer.hand, ...taken] };
   state.turnState!.powerUsed = true;
-  addLog(state, 'seer.takes', { player: seer.name, count: donors.length });
+  addLog(state, 'seer.takes', { player: seer.name, count: recipientIds.length });
+
+  // Which card goes back to whom is the Seer's decision, not ours.
+  if (recipientIds.length > 0) {
+    state.pendingSeer = { playerId, recipientIds };
+  }
+  return state;
+}
+
+function handleSeerGive(
+  state: GameState, playerId: string, assignments: { toPlayerId: string; cardIndex: number }[]
+): GameState {
+  const pending = state.pendingSeer;
+  if (!pending) fail('err.noSeerPending');
+  if (pending.playerId !== playerId) fail('err.notYourDecision');
+
+  const playerIndex = state.players.findIndex(p => p.id === playerId);
+  if (playerIndex === -1) fail('err.playerNotFound');
+  const seer = state.players[playerIndex];
+
+  if (assignments.length !== pending.recipientIds.length) {
+    fail('err.seerGiveOnePerPlayer', { count: pending.recipientIds.length });
+  }
+
+  const seenRecipients = new Set<string>();
+  const seenCards = new Set<number>();
+  for (const { toPlayerId, cardIndex } of assignments) {
+    if (!pending.recipientIds.includes(toPlayerId)) fail('err.seerNotOwed');
+    if (seenRecipients.has(toPlayerId)) fail('err.seerGiveOnePerPlayer', { count: pending.recipientIds.length });
+    if (cardIndex < 0 || cardIndex >= seer.hand.length) fail('err.invalidCardIndex');
+    if (seenCards.has(cardIndex)) fail('err.seerCardTwice');
+    seenRecipients.add(toPlayerId);
+    seenCards.add(cardIndex);
+  }
+
+  // Resolve every card before touching the hand, so indices stay meaningful.
+  const handouts = assignments.map(a => ({ toPlayerId: a.toPlayerId, card: seer.hand[a.cardIndex] }));
+  const newHand = seer.hand.filter((_, i) => !seenCards.has(i));
+
+  for (const { toPlayerId, card } of handouts) {
+    const recipientIndex = state.players.findIndex(p => p.id === toPlayerId);
+    state.players[recipientIndex] = {
+      ...state.players[recipientIndex],
+      hand: [...state.players[recipientIndex].hand, card],
+    };
+  }
+
+  state.players[playerIndex] = { ...state.players[playerIndex], hand: newHand };
+  state.pendingSeer = null;
+  addLog(state, 'seer.gives', { player: seer.name, count: handouts.length });
   return state;
 }
 
@@ -1418,13 +1451,14 @@ function validatePowerUse(state: GameState, playerId: string, expectedCharacter:
 // ── Process action (main entry point) ───────────────────────────
 
 const PENDING_ACTIONS = new Set([
+  'SEER_GIVE',
   'GRAVEYARD_RECOVER', 'GRAVEYARD_PASS',
   'MAGISTRATE_CONFISCATE', 'MAGISTRATE_PASS',
   'BLACKMAIL_PAY', 'BLACKMAIL_REFUSE', 'BLACKMAIL_REVEAL', 'BLACKMAIL_SKIP',
 ]);
 
 export function hasPendingDecision(state: GameState): boolean {
-  return !!(state.pendingGraveyard || state.pendingMagistrate || state.pendingBlackmail);
+  return !!(state.pendingGraveyard || state.pendingMagistrate || state.pendingBlackmail || state.pendingSeer);
 }
 
 /** Who must answer the outstanding decision, if any. */
@@ -1432,6 +1466,7 @@ export function pendingDecisionPlayerId(state: GameState): string | null {
   if (state.pendingGraveyard) return state.pendingGraveyard.playerId;
   if (state.pendingMagistrate) return state.pendingMagistrate.playerId;
   if (state.pendingBlackmail) return state.pendingBlackmail.playerId;
+  if (state.pendingSeer) return state.pendingSeer.playerId;
   return null;
 }
 
@@ -1441,6 +1476,7 @@ export function processAction(state: GameState, action: GameAction): GameState {
   if (hasPendingDecision(state) && !PENDING_ACTIONS.has(action.type)) {
     fail(state.pendingGraveyard ? 'err.waitingGraveyard'
       : state.pendingMagistrate ? 'err.waitingWarrant'
+      : state.pendingSeer ? 'err.waitingSeer'
       : 'err.waitingBlackmail');
   }
 
@@ -1541,6 +1577,9 @@ export function processAction(state: GameState, action: GameAction): GameState {
     case 'SEER_TAKE':
       requireTurnPhase();
       return handleSeerTake(state, action.playerId);
+
+    case 'SEER_GIVE':
+      return handleSeerGive(state, action.playerId, action.assignments);
 
     case 'EMPEROR_CROWN':
       requireTurnPhase();
@@ -1752,6 +1791,16 @@ export function getPlayerView(state: GameState, playerId: string): PlayerGameVie
       ? { ...state.pendingBlackmail, blackmailerName: blackmailer?.name ?? '' }
       : null,
 
+    pendingSeer: state.pendingSeer
+      ? {
+          playerId: state.pendingSeer.playerId,
+          recipients: state.pendingSeer.recipientIds.map(id => ({
+            id,
+            name: state.players.find(p => p.id === id)?.name ?? '',
+          })),
+        }
+      : null,
+
     revealedHands,
     myWarrants: state.magistratePlayerId === playerId ? state.warrants : [],
     myThreats: state.blackmailerPlayerId === playerId ? state.threats : [],
@@ -1802,6 +1851,7 @@ export interface AvailableActions {
   canBlackmailDecide: boolean;
   canWizardTake: boolean;
   canSeerTake: boolean;
+  canSeerGive: boolean;
   canEmperorCrown: boolean;
   canAbbotIncome: boolean;
   canCardinalBuild: boolean;
@@ -1839,6 +1889,7 @@ const EMPTY_ACTIONS: AvailableActions = {
   canBlackmailDecide: false,
   canWizardTake: false,
   canSeerTake: false,
+  canSeerGive: false,
   canEmperorCrown: false,
   canAbbotIncome: false,
   canCardinalBuild: false,
@@ -1864,6 +1915,7 @@ export function getAvailableActions(state: GameState, playerId: string): Availab
       canGraveyardDecide: state.pendingGraveyard?.playerId === playerId,
       canMagistrateDecide: state.pendingMagistrate?.playerId === playerId,
       canBlackmailDecide: state.pendingBlackmail?.playerId === playerId,
+      canSeerGive: state.pendingSeer?.playerId === playerId,
     };
   }
 

@@ -121,6 +121,8 @@ export type GameAction =
   | { type: 'BLACKMAIL_SKIP'; playerId: string }
   | { type: 'WIZARD_TAKE'; playerId: string; targetPlayerId: string; cardIndex: number; build: boolean }
   | { type: 'SEER_TAKE'; playerId: string }
+  /** One card from the Seer's hand for each player they took from. */
+  | { type: 'SEER_GIVE'; playerId: string; assignments: { toPlayerId: string; cardIndex: number }[] }
   | { type: 'EMPEROR_CROWN'; playerId: string; targetPlayerId: string; take: 'gold' | 'card' }
   | { type: 'ABBOT_INCOME'; playerId: string; goldCount: number; cardCount: number }
   | { type: 'CARDINAL_BUILD'; playerId: string; cardIndex: number; lenderPlayerId: string }
@@ -212,6 +214,8 @@ export interface GameState {
   pendingGraveyard: { playerId: string; card: DistrictCard } | null;
   /** Magistrate: a district just paid for by a warranted player */
   pendingMagistrate: { playerId: string; targetPlayerId: string; card: DistrictCard } | null;
+  /** Seer: the players still owed a card back, chosen by the Seer */
+  pendingSeer: { playerId: string; recipientIds: string[] } | null;
   /** Blackmailer: a threatened player choosing to bribe or refuse */
   pendingBlackmail: {
     playerId: string;          // the threatened player, deciding
@@ -284,6 +288,8 @@ export interface PlayerGameView {
   pendingGraveyard: { playerId: string; card: DistrictCard } | null;
   pendingMagistrate: { playerId: string; targetPlayerId: string; targetPlayerName: string; card: DistrictCard } | null;
   pendingBlackmail: { playerId: string; blackmailerId: string; blackmailerName: string; stage: 'bribe' | 'reveal'; bribeAmount: number } | null;
+  /** Seer: who I still owe a card to, with names for the UI. */
+  pendingSeer: { playerId: string; recipients: { id: string; name: string }[] } | null;
 
   /** Hands revealed to me by my own power (Wizard / Spy). */
   revealedHands: { playerId: string; playerName: string; cards: DistrictCard[] }[];
