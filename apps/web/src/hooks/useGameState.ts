@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import type { PlayerGameView, GameAction } from '@citadels/game-logic';
+import type { PlayerGameView, BotTurnSummary } from '@citadels/game-logic';
 
 export interface LobbyState {
   roomId: string;
@@ -18,6 +18,9 @@ interface GameStore {
   error: string | null;
   actionError: string | null;
   savedGames: string[];
+  /** The turn recap currently on screen. The server sends one at a time and
+   *  waits for every player to dismiss it before the game moves on. */
+  turnSummary: (BotTurnSummary & { id: string }) | null;
 
   setRoom: (roomId: string, playerId: string) => void;
   setGameView: (view: PlayerGameView) => void;
@@ -25,6 +28,7 @@ interface GameStore {
   setError: (error: string | null) => void;
   setActionError: (error: string | null) => void;
   setSavedGames: (games: string[]) => void;
+  setTurnSummary: (summary: (BotTurnSummary & { id: string }) | null) => void;
   reset: () => void;
 }
 
@@ -36,6 +40,7 @@ export const useGameStore = create<GameStore>((set) => ({
   error: null,
   actionError: null,
   savedGames: [],
+  turnSummary: null,
 
   setRoom: (roomId, playerId) => set({ roomId, playerId, error: null }),
   setGameView: (view) => set({ gameView: view, lobbyState: null, actionError: null }),
@@ -43,5 +48,9 @@ export const useGameStore = create<GameStore>((set) => ({
   setError: (error) => set({ error }),
   setActionError: (error) => set({ actionError: error }),
   setSavedGames: (games) => set({ savedGames: games }),
-  reset: () => set({ roomId: null, playerId: null, gameView: null, lobbyState: null, error: null, actionError: null }),
+  setTurnSummary: (summary) => set({ turnSummary: summary }),
+  reset: () => set({
+    roomId: null, playerId: null, gameView: null, lobbyState: null,
+    error: null, actionError: null, turnSummary: null,
+  }),
 }));

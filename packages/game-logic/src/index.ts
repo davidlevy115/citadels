@@ -7,6 +7,7 @@ export type {
   Player,
   Character,
   CharacterName,
+  CharacterSet,
   DistrictCard,
   BuiltDistrict,
   DistrictType,
@@ -16,17 +17,28 @@ export type {
   PlayerScore,
   LogEntry,
   RoundEvent,
+  BotTurnSummary,
 } from './types.js';
 
-export { createGame, processAction, getPlayerView, getAvailableActions } from './engine.js';
+export {
+  createGame, processAction, getPlayerView, getAvailableActions,
+  hasPendingDecision, pendingDecisionPlayerId, currentRoundEntries,
+} from './engine.js';
 export type { AvailableActions } from './engine.js';
 export { calculateScores, determineWinner } from './scoring.js';
 export { getBotAction } from './bot.js';
 export {
   CHARACTERS,
+  ALL_CHARACTERS,
+  CHARACTER_SETS,
+  getCharacterSet,
+  getCharacterByName,
+  buildCast,
   createDistrictDeck,
   DISTRICTS_TO_WIN,
   DISTRICTS_TO_WIN_SHORT,
   CHARACTER_INCOME_TYPE,
+  CROWN_TAKING_CHARACTERS,
 } from './constants.js';
+export { districtValue, buildLimitFor } from './characters.js';
 export { shuffle, generateId } from './utils.js';

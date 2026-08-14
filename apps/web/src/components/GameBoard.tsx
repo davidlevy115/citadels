@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PlayerGameView, DistrictCard, Character, BuiltDistrict } from '@citadels/game-logic';
-import { CHARACTERS } from '@citadels/game-logic';
 import { DistrictCardView } from './Card';
 import { DistrictDetailModal, CharacterDetailModal } from './CardDetailModal';
 import { CharacterSelect } from './CharacterSelect';
@@ -13,6 +12,8 @@ import { RemovedCharacters } from './RemovedCharacters';
 import { GoldDisplay } from './GoldDisplay';
 import { PowerActions } from './PowerActions';
 import { GameLog } from './GameLog';
+import { TurnSummaryPopup } from './TurnSummaryPopup';
+import { useGameStore } from '@/hooks/useGameState';
 
 type DetailTarget =
   | { type: 'district'; card: DistrictCard | BuiltDistrict }
@@ -24,20 +25,35 @@ interface GameBoardProps {
   onAction: (action: any) => void;
   actionError: string | null;
   roomId?: string | null;
+  /** Dismiss the turn recap on screen; the game resumes once everyone has. */
+  onDismissTurnSummary: (summaryId: string) => void;
 }
 
-export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProps) {
+export function GameBoard({ view, onAction, actionError, roomId, onDismissTurnSummary }: GameBoardProps) {
   const me = view.players[view.myIndex];
   const turnState = view.turnState;
   const isMyTurn = view.isMyTurn;
   const [detailTarget, setDetailTarget] = useState<DetailTarget>(null);
-  const isMyGraveyardDecision = view.pendingGraveyard?.playerId === me?.id;
+  const turnSummary = useGameStore(s => s.turnSummary);
 
-  const calledCharacter = CHARACTERS.find(c => c.rank === view.currentCharacterRank);
+  const isMyGraveyardDecision = view.pendingGraveyard?.playerId === me?.id;
+  const isMyMagistrateDecision = view.pendingMagistrate?.playerId === me?.id;
+  const isMyBlackmailDecision = view.pendingBlackmail?.playerId === me?.id;
+  const somebodyElseIsDeciding =
+    (view.pendingGraveyard && !isMyGraveyardDecision) ||
+    (view.pendingMagistrate && !isMyMagistrateDecision) ||
+    (view.pendingBlackmail && !isMyBlackmailDecision);
+
+  // The Witch plays somebody else's character, so the banner follows the turn.
+  const calledCharacter =
+    turnState?.effectiveCharacter ?? view.cast.find(c => c.rank === view.currentCharacterRank);
   const otherPlayers = view.players.filter((_, i) => i !== view.myIndex);
 
   return (
     <div className="min-h-[100dvh] flex flex-col">
+      {/* Live recap of the turn that just finished */}
+      <TurnSummaryPopup summary={turnSummary} onDismiss={onDismissTurnSummary} />
+
       {/* Overlays */}
       {view.isMyTurnToChoose && view.availableCharacters.length > 0 && (
         <CharacterSelect
@@ -46,6 +62,8 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
           players={view.players}
           myIndex={view.myIndex}
           crownPlayerIndex={view.crownPlayerIndex}
+          warrantedRanks={view.warrantedRanks}
+          threatenedRanks={view.threatenedRanks}
           onSelect={(rank) => onAction({ type: 'CHOOSE_CHARACTER', characterRank: rank })}
           onDetail={(char) => setDetailTarget({ type: 'character', character: char })}
         />
@@ -65,6 +83,23 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
           onRecover={() => onAction({ type: 'GRAVEYARD_RECOVER' })}
           onPass={() => onAction({ type: 'GRAVEYARD_PASS' })}
           onDetail={(card) => setDetailTarget({ type: 'district', card })}
+        />
+      )}
+      {view.pendingMagistrate && isMyMagistrateDecision && (
+        <MagistrateOverlay
+          pending={view.pendingMagistrate}
+          onConfiscate={() => onAction({ type: 'MAGISTRATE_CONFISCATE' })}
+          onPass={() => onAction({ type: 'MAGISTRATE_PASS' })}
+          onDetail={(card) => setDetailTarget({ type: 'district', card })}
+        />
+      )}
+      {view.pendingBlackmail && isMyBlackmailDecision && (
+        <BlackmailOverlay
+          pending={view.pendingBlackmail}
+          myThreats={view.myThreats}
+          cast={view.cast}
+          currentRank={view.currentCharacterRank}
+          onAction={onAction}
         />
       )}
       {view.phase === 'gameOver' && view.scores && <GameOverOverlay view={view} />}
@@ -94,6 +129,9 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
         <div className="flex items-center gap-3 text-[11px] text-slate-400">
           <span>Round {view.round}</span>
           <span>Deck {view.districtDeckCount}</span>
+          {view.taxPot > 0 && (
+            <span className="text-amber-300" title="Gold waiting on the Tax Collector">Tax {view.taxPot}</span>
+          )}
           {view.myCharacter && (
             <button
               onClick={() => setDetailTarget({ type: 'character', character: view.myCharacter! })}
@@ -172,8 +210,10 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
                 </div>
               )}
               {view.phase === 'playerTurns' && calledCharacter && (
-                <motion.div key={view.currentCharacterRank} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-                  <div className="text-[10px] text-emerald-600 uppercase tracking-[0.2em]">Now playing</div>
+                <motion.div key={`${view.currentCharacterRank}-${turnState?.isWitchResume}`} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                  <div className="text-[10px] text-emerald-600 uppercase tracking-[0.2em]">
+                    {turnState?.isWitchResume ? 'Bewitched — the Witch plays' : 'Now playing'}
+                  </div>
                   <div className="text-base font-bold text-amber-300">{calledCharacter.name} <span className="text-emerald-600 text-xs">#{calledCharacter.rank}</span></div>
                 </motion.div>
               )}
@@ -194,13 +234,15 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
             )}
 
             {/* Round events */}
-            {view.phase === 'playerTurns' && view.roundEvents.length > 0 && (
+            {view.phase === 'playerTurns' && (
               <div className="mb-2">
                 <RoundEvents
                   events={view.roundEvents}
                   murderedCharacter={view.murderedCharacter}
                   robbedCharacter={view.robbedCharacter}
+                  bewitchedCharacter={view.bewitchedCharacter}
                   myCharacter={view.myCharacter}
+                  cast={view.cast}
                 />
               </div>
             )}
@@ -217,19 +259,20 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
               )}
             </AnimatePresence>
 
-            {/* Graveyard wait notice */}
-            {view.pendingGraveyard && !isMyGraveyardDecision && (
+            {/* Pending decision notice */}
+            {somebodyElseIsDeciding && (
               <div className="text-center text-[11px] text-purple-300 animate-pulse mb-2">
-                Waiting for Graveyard decision...
+                Waiting for another player to decide...
               </div>
             )}
 
             {/* Action controls */}
-            {isMyTurn && turnState && !view.pendingGraveyard && (
+            {isMyTurn && turnState && !somebodyElseIsDeciding && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
                 <div className="text-center text-[11px] text-cyan-300 font-medium">
                   {!turnState.actionTaken ? 'Your turn — choose an action'
                     : turnState.phase === 'choosingCard' ? 'Pick a card to keep'
+                    : turnState.isBewitchedTurn ? 'Bewitched — your turn ends here'
                     : 'Build, use powers, or end turn'}
                 </div>
 
@@ -241,7 +284,7 @@ export function GameBoard({ view, onAction, actionError, roomId }: GameBoardProp
                     </button>
                     <button onClick={() => onAction({ type: 'DRAW_CARDS' })}
                       className="px-4 py-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg text-sm font-bold transition-colors shadow-lg text-emerald-100">
-                      &#9830; Draw Cards
+                      &#9830; Draw {turnState.effectiveCharacter.name === 'Scholar' ? '7 ' : ''}Cards
                     </button>
                   </div>
                 )}
@@ -484,6 +527,100 @@ function GraveyardOverlay({ card, gold, onRecover, onPass, onDetail }: {
             Decline
           </button>
         </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function MagistrateOverlay({ pending, onConfiscate, onPass, onDetail }: {
+  pending: NonNullable<PlayerGameView['pendingMagistrate']>;
+  onConfiscate: () => void;
+  onPass: () => void;
+  onDetail: (card: DistrictCard) => void;
+}) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-800 rounded-xl p-5 border border-amber-600/60 max-w-sm w-full mx-4">
+        <h2 className="text-base font-bold text-center mb-1 text-amber-300">Signed Warrant</h2>
+        <p className="text-xs text-slate-400 text-center mb-4">
+          {pending.targetPlayerName} just paid to build {pending.card.name}. Reveal your warrant to
+          confiscate it — they get their gold back and it is built in your city for free.
+        </p>
+        <div className="flex justify-center mb-4">
+          <DistrictCardView card={pending.card} onDetail={() => onDetail(pending.card)} />
+        </div>
+        <div className="flex gap-2 justify-center">
+          <button onClick={onConfiscate}
+            className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-xs font-bold text-white transition-colors shadow-lg">
+            Confiscate
+          </button>
+          <button onClick={onPass}
+            className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs font-bold text-slate-200 transition-colors">
+            Stay hidden
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function BlackmailOverlay({ pending, myThreats, cast, currentRank, onAction }: {
+  pending: NonNullable<PlayerGameView['pendingBlackmail']>;
+  myThreats: { rank: number; real: boolean }[];
+  cast: Character[];
+  currentRank: number;
+  onAction: (action: any) => void;
+}) {
+  const isBribeStage = pending.stage === 'bribe';
+  const threatOnTarget = myThreats.find(t => t.rank === currentRank);
+  const targetCharacter = cast.find(c => c.rank === currentRank);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-800 rounded-xl p-5 border border-rose-600/60 max-w-sm w-full mx-4">
+        <h2 className="text-base font-bold text-center mb-1 text-rose-300">Blackmail</h2>
+
+        {isBribeStage ? (
+          <>
+            <p className="text-xs text-slate-400 text-center mb-4">
+              {pending.blackmailerName} has a threat marker on you. Bribe them {pending.bribeAmount} gold
+              (half your stash) to make it go away, or refuse and gamble that it is a bluff — if it is
+              real they take everything you have.
+            </p>
+            <div className="flex gap-2 justify-center">
+              <button onClick={() => onAction({ type: 'BLACKMAIL_PAY' })}
+                className="px-4 py-1.5 bg-rose-700 hover:bg-rose-600 rounded-lg text-xs font-bold text-white transition-colors shadow-lg">
+                Pay {pending.bribeAmount} gold
+              </button>
+              <button onClick={() => onAction({ type: 'BLACKMAIL_REFUSE' })}
+                className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs font-bold text-slate-200 transition-colors">
+                Refuse
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-slate-400 text-center mb-4">
+              The {targetCharacter?.name ?? 'target'} refused to pay. Your marker on them is{' '}
+              <span className={threatOnTarget?.real ? 'text-rose-300 font-bold' : 'text-slate-300 font-bold'}>
+                {threatOnTarget?.real ? 'the real threat' : 'a bluff'}
+              </span>
+              . Revealing it takes all their gold if it is real — and shows your hand if it is not.
+            </p>
+            <div className="flex gap-2 justify-center">
+              <button onClick={() => onAction({ type: 'BLACKMAIL_REVEAL' })}
+                className="px-4 py-1.5 bg-rose-700 hover:bg-rose-600 rounded-lg text-xs font-bold text-white transition-colors shadow-lg">
+                Reveal the marker
+              </button>
+              <button onClick={() => onAction({ type: 'BLACKMAIL_SKIP' })}
+                className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs font-bold text-slate-200 transition-colors">
+                Leave it facedown
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </motion.div>
   );

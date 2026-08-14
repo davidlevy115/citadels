@@ -1,25 +1,36 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { Character } from '@citadels/game-logic';
 import { useSocket } from '@/hooks/useSocket';
 import { useGameStore } from '@/hooks/useGameState';
 import { GameBoard } from '@/components/GameBoard';
+import { CharacterSetPicker } from '@/components/CharacterSetPicker';
+import { CharacterDetailModal } from '@/components/CardDetailModal';
 
 export default function Home() {
-  const { createGame, createMultiplayerRoom, joinRoom, sendAction, loadGame, listSaves } = useSocket();
+  const {
+    createGame, createMultiplayerRoom, joinRoom, sendAction, loadGame, listSaves, ackTurnSummary,
+  } = useSocket();
   const { roomId, playerId, gameView, lobbyState, error, actionError, savedGames } = useGameStore();
 
   const [playerName, setPlayerName] = useState('');
+  const [playerAge, setPlayerAge] = useState('');
   const [botCount, setBotCount] = useState(3);
   const [tab, setTab] = useState<'single' | 'multi' | 'join' | 'load'>('single');
   const [joinCode, setJoinCode] = useState('');
   const [totalHumans, setTotalHumans] = useState(2);
   const [multiBots, setMultiBots] = useState(0);
+  const [characterSetId, setCharacterSetId] = useState('classic');
+  const [includeRank9, setIncludeRank9] = useState(false);
+  const [detailCharacter, setDetailCharacter] = useState<Character | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('citadels-name');
-    if (saved) setPlayerName(saved);
+    const savedName = localStorage.getItem('citadels-name');
+    if (savedName) setPlayerName(savedName);
+    const savedAge = localStorage.getItem('citadels-age');
+    if (savedAge) setPlayerAge(savedAge);
   }, []);
 
   // In game — show game board
@@ -30,6 +41,7 @@ export default function Home() {
         onAction={sendAction}
         actionError={actionError}
         roomId={roomId}
+        onDismissTurnSummary={ackTurnSummary}
       />
     );
   }
@@ -46,7 +58,6 @@ export default function Home() {
           <h1 className="text-3xl font-bold text-amber-400 mb-2">Citadels</h1>
           <p className="text-slate-400 text-sm mb-6">Waiting for players to join...</p>
 
-          {/* Room code */}
           <div className="bg-slate-900/60 rounded-xl p-5 mb-6">
             <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Share this room code</p>
             <button
@@ -59,7 +70,6 @@ export default function Home() {
             <p className="text-xs text-slate-500 mt-2">Click to copy</p>
           </div>
 
-          {/* Player list */}
           <div className="space-y-2 mb-6">
             {Array.from({ length: lobbyState.totalHumansNeeded }, (_, i) => {
               const name = lobbyState.joined[i];
@@ -84,6 +94,7 @@ export default function Home() {
           <p className="text-xs text-slate-500">
             {lobbyState.joined.length} / {lobbyState.totalHumansNeeded} players joined
           </p>
+          <p className="text-[11px] text-slate-600 mt-1">The oldest player will take the Crown.</p>
 
           <motion.div
             className="mt-4 flex justify-center gap-1.5"
@@ -99,12 +110,33 @@ export default function Home() {
     );
   }
 
-  const saveName = () => {
+  const savePlayer = () => {
     if (playerName.trim()) localStorage.setItem('citadels-name', playerName.trim());
+    if (playerAge.trim()) localStorage.setItem('citadels-age', playerAge.trim());
   };
 
+  const parsedAge = (() => {
+    const n = parseInt(playerAge, 10);
+    return Number.isFinite(n) && n > 0 && n < 130 ? n : undefined;
+  })();
+
+  const setup = {
+    playerName: playerName.trim() || 'Player',
+    playerAge: parsedAge,
+    characterSetId,
+    includeRank9,
+  };
+
+  const detailsReady = !!playerName.trim() && parsedAge !== undefined;
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-start justify-center p-4 py-8">
+      <AnimatePresence>
+        {detailCharacter && (
+          <CharacterDetailModal character={detailCharacter} onClose={() => setDetailCharacter(null)} />
+        )}
+      </AnimatePresence>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -116,18 +148,37 @@ export default function Home() {
           <p className="text-slate-400 text-sm">Build the most prosperous city in the realm</p>
         </div>
 
-        {/* Player name */}
-        <div className="mb-6">
-          <label className="block text-sm text-slate-300 mb-1">Your Name</label>
-          <input
-            type="text"
-            value={playerName}
-            onChange={e => setPlayerName(e.target.value)}
-            onBlur={saveName}
-            placeholder="Enter your name"
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          />
+        {/* Player identity */}
+        <div className="mb-6 flex gap-3">
+          <div className="flex-1">
+            <label className="block text-sm text-slate-300 mb-1">Your Name</label>
+            <input
+              type="text"
+              value={playerName}
+              onChange={e => setPlayerName(e.target.value)}
+              onBlur={savePlayer}
+              placeholder="Enter your name"
+              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div className="w-24">
+            <label className="block text-sm text-slate-300 mb-1">Age</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={129}
+              value={playerAge}
+              onChange={e => setPlayerAge(e.target.value)}
+              onBlur={savePlayer}
+              placeholder="—"
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-center focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
         </div>
+        <p className="-mt-4 mb-6 text-[11px] text-slate-500">
+          The oldest player receives the Crown and chooses their character first.
+        </p>
 
         {/* Tabs */}
         <div className="flex gap-1 mb-4 bg-slate-900/50 rounded-lg p-1">
@@ -169,13 +220,26 @@ export default function Home() {
               </div>
               <p className="text-xs text-slate-500 mt-1">{botCount + 1} total players</p>
             </div>
+
+            <CharacterSetPicker
+              value={characterSetId}
+              onChange={setCharacterSetId}
+              includeRank9={includeRank9}
+              onIncludeRank9Change={setIncludeRank9}
+              playerCount={botCount + 1}
+              onDetail={setDetailCharacter}
+            />
+
             <button
-              onClick={() => { saveName(); createGame(playerName.trim() || 'Player', botCount); }}
-              disabled={!playerName.trim()}
+              onClick={() => { savePlayer(); createGame(setup, botCount); }}
+              disabled={!detailsReady}
               className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
             >
               Start Game
             </button>
+            {!detailsReady && (
+              <p className="text-[11px] text-slate-500 text-center">Enter your name and age to start.</p>
+            )}
           </div>
         )}
 
@@ -214,9 +278,19 @@ export default function Home() {
               </div>
               <p className="text-xs text-slate-500 mt-1">{totalHumans + multiBots} total players</p>
             </div>
+
+            <CharacterSetPicker
+              value={characterSetId}
+              onChange={setCharacterSetId}
+              includeRank9={includeRank9}
+              onIncludeRank9Change={setIncludeRank9}
+              playerCount={totalHumans + multiBots}
+              onDetail={setDetailCharacter}
+            />
+
             <button
-              onClick={() => { saveName(); createMultiplayerRoom(playerName.trim() || 'Player', totalHumans, multiBots); }}
-              disabled={!playerName.trim() || totalHumans + multiBots < 2 || totalHumans + multiBots > 7}
+              onClick={() => { savePlayer(); createMultiplayerRoom(setup, totalHumans, multiBots); }}
+              disabled={!detailsReady || totalHumans + multiBots < 2 || totalHumans + multiBots > 7}
               className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
             >
               Create Room
@@ -237,9 +311,12 @@ export default function Home() {
                 maxLength={6}
               />
             </div>
+            <p className="text-[11px] text-slate-500">
+              The host picks the character set. Your age decides who starts.
+            </p>
             <button
-              onClick={() => { saveName(); joinRoom(joinCode, playerName.trim() || 'Player'); }}
-              disabled={!playerName.trim() || joinCode.length < 4}
+              onClick={() => { savePlayer(); joinRoom(joinCode, playerName.trim() || 'Player', parsedAge); }}
+              disabled={!detailsReady || joinCode.length < 4}
               className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
             >
               Join Game
@@ -256,7 +333,7 @@ export default function Home() {
                 {savedGames.map(id => (
                   <button
                     key={id}
-                    onClick={() => { saveName(); loadGame(id, playerName.trim() || 'Player'); }}
+                    onClick={() => { savePlayer(); loadGame(id, playerName.trim() || 'Player'); }}
                     className="w-full px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-left text-sm transition-colors"
                   >
                     Game {id}

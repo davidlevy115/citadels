@@ -10,11 +10,17 @@ interface CharacterSelectProps {
   players: PlayerPublicInfo[];
   myIndex: number;
   crownPlayerIndex: number;
+  /** Markers placed by the Magistrate / Blackmailer — public, but their meaning is not. */
+  warrantedRanks?: number[];
+  threatenedRanks?: number[];
   onSelect: (rank: number) => void;
   onDetail?: (character: Character) => void;
 }
 
-export function CharacterSelect({ characters, removedFaceUp, players, myIndex, crownPlayerIndex, onSelect, onDetail }: CharacterSelectProps) {
+export function CharacterSelect({
+  characters, removedFaceUp, players, myIndex, crownPlayerIndex,
+  warrantedRanks = [], threatenedRanks = [], onSelect, onDetail,
+}: CharacterSelectProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -84,6 +90,21 @@ export function CharacterSelect({ characters, removedFaceUp, players, myIndex, c
           </div>
         )}
 
+        {(warrantedRanks.length > 0 || threatenedRanks.length > 0) && (
+          <p className="text-[11px] text-slate-400 text-center mb-3">
+            {warrantedRanks.length > 0 && (
+              <span className="mr-3">
+                <span className="text-amber-400">§</span> Warrant on rank {warrantedRanks.sort((a, b) => a - b).join(', ')}
+              </span>
+            )}
+            {threatenedRanks.length > 0 && (
+              <span>
+                <span className="text-rose-400">✉</span> Threat on rank {threatenedRanks.sort((a, b) => a - b).join(', ')}
+              </span>
+            )}
+          </p>
+        )}
+
         <div className="flex flex-wrap gap-3 justify-center">
           <AnimatePresence>
             {characters.map((char, i) => (
@@ -92,12 +113,29 @@ export function CharacterSelect({ characters, removedFaceUp, players, myIndex, c
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
+                className="relative"
               >
                 <CharacterCardView
                   character={char}
                   onClick={() => onSelect(char.rank)}
                   onDetail={onDetail ? () => onDetail(char) : undefined}
                 />
+                {(warrantedRanks.includes(char.rank) || threatenedRanks.includes(char.rank)) && (
+                  <div className="absolute -top-1.5 -right-1.5 flex gap-0.5 z-10">
+                    {warrantedRanks.includes(char.rank) && (
+                      <span title="A warrant marker sits on this character"
+                        className="w-5 h-5 rounded-full bg-amber-600 border border-amber-300 text-[10px] font-bold flex items-center justify-center shadow">
+                        §
+                      </span>
+                    )}
+                    {threatenedRanks.includes(char.rank) && (
+                      <span title="A threat marker sits on this character"
+                        className="w-5 h-5 rounded-full bg-rose-700 border border-rose-300 text-[10px] font-bold flex items-center justify-center shadow">
+                        ✉
+                      </span>
+                    )}
+                  </div>
+                )}
               </motion.div>
             ))}
           </AnimatePresence>

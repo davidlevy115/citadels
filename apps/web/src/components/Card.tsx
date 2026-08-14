@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { DistrictCard, Character } from '@citadels/game-logic';
-import { getDistrictImagePath, getCharacterImagePath, DISTRICT_TYPE_ICON, CHARACTER_ICON } from '@/lib/cardImages';
+import { getDistrictImagePath, getCharacterImagePath, DISTRICT_TYPE_ICON, CHARACTER_ICON, rankTheme } from '@/lib/cardImages';
 
 const TYPE_BORDER: Record<string, string> = {
   noble: 'border-yellow-500',
@@ -40,7 +40,7 @@ const TYPE_LABELS: Record<string, string> = {
 // ── District Card ───────────────────────────────────────────────
 
 interface DistrictCardProps {
-  card: DistrictCard;
+  card: DistrictCard & { beautified?: boolean };
   onClick?: () => void;
   onDetail?: () => void;
   selected?: boolean;
@@ -113,6 +113,14 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
           {card.cost}
         </div>
 
+        {/* Beautified by the Artist — worth 1 more */}
+        {card.beautified && (
+          <div title="Beautified: worth 1 more point"
+            className="absolute bottom-4 left-1 w-4 h-4 bg-pink-500 text-white rounded-full flex items-center justify-center text-[8px] shadow">
+            ✿
+          </div>
+        )}
+
         {/* Info button */}
         {onDetail && !disabled && (
           <button
@@ -184,6 +192,14 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
         {card.cost}
       </div>
 
+      {/* Beautified by the Artist — worth 1 more */}
+      {card.beautified && (
+        <div title="Beautified: worth 1 more point"
+          className="absolute top-10 left-2 w-6 h-6 bg-pink-500 text-white rounded-full flex items-center justify-center text-[11px] shadow-lg">
+          ✿
+        </div>
+      )}
+
       {/* Info button */}
       {onDetail && (
         <button
@@ -228,28 +244,6 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
 
 // ── Character Card ──────────────────────────────────────────────
 
-const CHAR_BORDER: Record<string, string> = {
-  Assassin: 'border-gray-400',
-  Thief: 'border-amber-500',
-  Magician: 'border-indigo-400',
-  King: 'border-yellow-400',
-  Bishop: 'border-blue-400',
-  Merchant: 'border-green-400',
-  Architect: 'border-amber-400',
-  Warlord: 'border-red-400',
-};
-
-const CHAR_BG: Record<string, string> = {
-  Assassin: 'from-gray-800 to-gray-950',
-  Thief: 'from-gray-700 to-gray-900',
-  Magician: 'from-indigo-700 to-indigo-950',
-  King: 'from-yellow-700 to-yellow-900',
-  Bishop: 'from-blue-700 to-blue-900',
-  Merchant: 'from-green-700 to-green-900',
-  Architect: 'from-amber-700 to-amber-900',
-  Warlord: 'from-red-700 to-red-900',
-};
-
 interface CharacterCardProps {
   character: Character;
   onClick?: () => void;
@@ -261,8 +255,9 @@ interface CharacterCardProps {
 
 export function CharacterCardView({ character, onClick, onDetail, selected, disabled, small }: CharacterCardProps) {
   const [imgError, setImgError] = useState(false);
-  const border = CHAR_BORDER[character.name] || 'border-slate-500';
-  const bg = CHAR_BG[character.name] || 'from-slate-700 to-slate-900';
+  const theme = rankTheme(character.rank);
+  const border = theme.border;
+  const bg = theme.bg;
   const icon = CHARACTER_ICON[character.name] || '\u2726';
 
   const handleClick = () => {

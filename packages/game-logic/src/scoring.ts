@@ -8,11 +8,9 @@ export function calculateScores(state: GameState, shorterGame: boolean): PlayerS
     let districtPoints = 0;
     for (const d of player.city) {
       // Dragon Gate and University are worth 8 instead of their cost
-      if (d.name === 'Dragon Gate' || d.name === 'University') {
-        districtPoints += 8;
-      } else {
-        districtPoints += d.cost;
-      }
+      districtPoints += (d.name === 'Dragon Gate' || d.name === 'University') ? 8 : d.cost;
+      // The Artist's beautified districts are permanently worth 1 more
+      if (d.beautified) districtPoints += 1;
     }
 
     // 2. Color bonus: 3 points for having all 5 types

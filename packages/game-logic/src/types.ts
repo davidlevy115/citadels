@@ -13,14 +13,24 @@ export interface DistrictCard {
 // ── Character types ─────────────────────────────────────────────
 
 export type CharacterName =
-  | 'Assassin'
-  | 'Thief'
-  | 'Magician'
-  | 'King'
-  | 'Bishop'
-  | 'Merchant'
-  | 'Architect'
-  | 'Warlord';
+  // rank 1
+  | 'Assassin' | 'Witch' | 'Magistrate'
+  // rank 2
+  | 'Thief' | 'Spy' | 'Blackmailer'
+  // rank 3
+  | 'Magician' | 'Wizard' | 'Seer'
+  // rank 4
+  | 'King' | 'Emperor' | 'Patrician'
+  // rank 5
+  | 'Bishop' | 'Abbot' | 'Cardinal'
+  // rank 6
+  | 'Merchant' | 'Alchemist' | 'Trader'
+  // rank 7
+  | 'Architect' | 'Navigator' | 'Scholar'
+  // rank 8
+  | 'Warlord' | 'Diplomat' | 'Marshal'
+  // rank 9 (optional)
+  | 'Queen' | 'Artist' | 'Tax Collector';
 
 export interface Character {
   rank: number;
@@ -28,11 +38,22 @@ export interface Character {
   description: string;
 }
 
+/** A named cast of characters — one per rank — that a game can be played with. */
+export interface CharacterSet {
+  id: string;
+  name: string;
+  blurb: string;
+  characters: CharacterName[];   // ranks 1-8, in order
+  rank9?: CharacterName;         // optional ninth character
+  isRandom?: boolean;            // cast is drawn at random when the game starts
+}
+
 // ── Player ──────────────────────────────────────────────────────
 
 export interface Player {
   id: string;
   name: string;
+  age?: number;          // declared at setup — the oldest player starts with the Crown
   gold: number;
   hand: DistrictCard[];
   city: BuiltDistrict[];
@@ -42,7 +63,7 @@ export interface Player {
 }
 
 export interface BuiltDistrict extends DistrictCard {
-  beautified?: boolean; // for Artist bonus character
+  beautified?: boolean; // Artist — permanently worth (and costing) 1 more
 }
 
 // ── Game phases ─────────────────────────────────────────────────
@@ -82,12 +103,39 @@ export type GameAction =
   | { type: 'LABORATORY_DISCARD'; playerId: string; cardIndex: number }
   | { type: 'SMITHY_DRAW'; playerId: string }
   | { type: 'GRAVEYARD_RECOVER'; playerId: string }
-  | { type: 'GRAVEYARD_PASS'; playerId: string };
+  | { type: 'GRAVEYARD_PASS'; playerId: string }
+  // ── Deluxe characters ──
+  | { type: 'WITCH_BEWITCH'; playerId: string; targetRank: number }
+  | { type: 'MAGISTRATE_WARRANTS'; playerId: string; signedRank: number; otherRanks: number[] }
+  | { type: 'MAGISTRATE_CONFISCATE'; playerId: string }
+  | { type: 'MAGISTRATE_PASS'; playerId: string }
+  | { type: 'SPY_SPY'; playerId: string; targetPlayerId: string; districtType: DistrictType }
+  | { type: 'BLACKMAIL_ASSIGN'; playerId: string; realRank: number; bluffRank: number }
+  | { type: 'BLACKMAIL_PAY'; playerId: string }
+  | { type: 'BLACKMAIL_REFUSE'; playerId: string }
+  | { type: 'BLACKMAIL_REVEAL'; playerId: string }
+  | { type: 'BLACKMAIL_SKIP'; playerId: string }
+  | { type: 'WIZARD_TAKE'; playerId: string; targetPlayerId: string; cardIndex: number; build: boolean }
+  | { type: 'SEER_TAKE'; playerId: string }
+  | { type: 'EMPEROR_CROWN'; playerId: string; targetPlayerId: string; take: 'gold' | 'card' }
+  | { type: 'ABBOT_INCOME'; playerId: string; goldCount: number; cardCount: number }
+  | { type: 'CARDINAL_BUILD'; playerId: string; cardIndex: number; lenderPlayerId: string }
+  | { type: 'NAVIGATOR_GAIN'; playerId: string; choice: 'gold' | 'cards' }
+  | { type: 'DIPLOMAT_EXCHANGE'; playerId: string; targetPlayerId: string; theirDistrictIndex: number; myDistrictIndex: number }
+  | { type: 'MARSHAL_SEIZE'; playerId: string; targetPlayerId: string; districtIndex: number }
+  | { type: 'ARTIST_BEAUTIFY'; playerId: string; districtIndex: number }
+  | { type: 'TAX_COLLECTOR_COLLECT'; playerId: string }
+  /** Decline an optional power so the turn can move on. */
+  | { type: 'SKIP_POWER'; playerId: string };
 
 // ── Turn state ──────────────────────────────────────────────────
 
 export interface TurnState {
+  playerId: string;           // whose turn this is (may differ from the rank's owner — see Witch)
   characterRank: number;
+  /** The character whose powers apply. Normally the player's own card; the Witch
+   *  resumes her turn playing the bewitched character instead. */
+  effectiveCharacter: Character;
   phase: TurnPhase;
   actionTaken: boolean;
   powerUsed: boolean;         // unique character power (kill, steal, swap, destroy)
@@ -97,6 +145,12 @@ export interface TurnState {
   drawnCards: DistrictCard[];  // cards drawn for choosing
   merchantBonusTaken: boolean;
   specialBuildingsUsed: string[];  // names of special buildings used this turn
+  goldSpentBuilding: number;   // Alchemist refund
+  beautifiedCount: number;     // Artist — at most 2 per turn
+  /** True on the bewitched player's stunted turn: gather resources, then stop. */
+  isBewitchedTurn: boolean;
+  /** True while the Witch is playing the bewitched character's turn. */
+  isWitchResume: boolean;
 }
 
 // ── Game state ──────────────────────────────────────────────────
@@ -106,6 +160,11 @@ export interface GameState {
   players: Player[];
   phase: GamePhase;
   round: number;
+
+  /** The cast of characters in play this game (one per rank). */
+  cast: Character[];
+  characterSetId: string;
+  maxRank: number;             // 8, or 9 when a rank 9 character is in the cast
 
   // Decks
   characterDeck: Character[];
@@ -124,8 +183,38 @@ export interface GameState {
   murderedCharacter: number | null;  // rank of murdered character
   robbedCharacter: number | null;    // rank of robbed character
 
-  // Graveyard: a destroyed district awaiting the owner's recover/pass decision
+  // ── Deluxe character round state ──
+  /** Rank bewitched by the Witch this round, and the Witch's own player id. */
+  bewitchedCharacter: number | null;
+  witchPlayerId: string | null;
+  /** Set once the bewitched player has taken their stunted turn — the Witch may now resume. */
+  witchResumePending: boolean;
+  /** Magistrate warrants: signed one confiscates, the others are bluffs. */
+  warrants: { rank: number; signed: boolean }[];
+  magistratePlayerId: string | null;
+  /** Ranks already checked against a warrant (each warrant fires at most once). */
+  warrantsResolved: number[];
+  /** Blackmailer threats: the real one can take all the target's gold. */
+  threats: { rank: number; real: boolean }[];
+  blackmailerPlayerId: string | null;
+  threatsResolved: number[];
+  /** Gold sitting on the Tax Collector's token. */
+  taxPot: number;
+  /** Hands a player has earned the right to look at this round (Spy). */
+  revealedHands: { viewerId: string; targetId: string }[];
+
+  // Pending decisions — these block every other action until answered
+  /** Graveyard: a destroyed district awaiting the owner's recover/pass decision */
   pendingGraveyard: { playerId: string; card: DistrictCard } | null;
+  /** Magistrate: a district just paid for by a warranted player */
+  pendingMagistrate: { playerId: string; targetPlayerId: string; card: DistrictCard } | null;
+  /** Blackmailer: a threatened player choosing to bribe or refuse */
+  pendingBlackmail: {
+    playerId: string;          // the threatened player, deciding
+    blackmailerId: string;
+    stage: 'bribe' | 'reveal'; // 'reveal' = target refused, blackmailer decides
+    bribeAmount: number;
+  } | null;
 
   // Crown
   crownPlayerIndex: number;
@@ -159,8 +248,10 @@ export interface LogEntry {
 // ── Config ──────────────────────────────────────────────────────
 
 export interface GameConfig {
-  players: { name: string; isBot: boolean; botDifficulty?: 'easy' | 'medium' | 'hard' }[];
-  shorterGame?: boolean; // 7 districts instead of 8
+  players: { name: string; isBot: boolean; age?: number; botDifficulty?: 'easy' | 'medium' | 'hard' }[];
+  shorterGame?: boolean;       // 7 districts instead of 8
+  characterSetId?: string;     // defaults to 'classic'
+  includeRank9?: boolean;      // add the set's rank 9 character
 }
 
 // ── Player view (what a specific player can see) ────────────────
@@ -174,6 +265,11 @@ export interface PlayerGameView {
   myHand: DistrictCard[];
   myCharacter: Character | null;
 
+  /** The cast in play this game, and the set it came from. */
+  cast: Character[];
+  characterSetId: string;
+  maxRank: number;
+
   // Character drafting
   availableCharacters: Character[];
   isMyTurnToChoose: boolean;
@@ -185,6 +281,19 @@ export interface PlayerGameView {
   turnState: TurnState | null;
   isMyTurn: boolean;
   pendingGraveyard: { playerId: string; card: DistrictCard } | null;
+  pendingMagistrate: { playerId: string; targetPlayerId: string; targetPlayerName: string; card: DistrictCard } | null;
+  pendingBlackmail: { playerId: string; blackmailerId: string; blackmailerName: string; stage: 'bribe' | 'reveal'; bribeAmount: number } | null;
+
+  /** Hands revealed to me by my own power (Wizard / Spy). */
+  revealedHands: { playerId: string; playerName: string; cards: DistrictCard[] }[];
+  /** Warrants / threats I placed this round (only visible to their owner). */
+  myWarrants: { rank: number; signed: boolean }[];
+  myThreats: { rank: number; real: boolean }[];
+  /** Ranks known to be under a warrant / threat (markers are public, their meaning is not). */
+  warrantedRanks: number[];
+  threatenedRanks: number[];
+  bewitchedCharacter: number | null;
+  taxPot: number;
 
   // Game state
   crownPlayerIndex: number;
@@ -201,12 +310,22 @@ export interface PlayerGameView {
 }
 
 export interface RoundEvent {
-  type: 'murder' | 'steal' | 'swap' | 'destroy' | 'bewitch';
+  type: 'murder' | 'steal' | 'swap' | 'destroy' | 'bewitch' | 'confiscate' | 'blackmail' | 'seize' | 'exchange' | 'spy';
   actorName: string;
   actorCharacter: string;
-  targetCharacter?: string;       // character name targeted (Assassin/Thief)
+  targetCharacter?: string;       // character name targeted (Assassin/Thief/Witch)
   targetPlayerName?: string;      // player name targeted (Magician/Warlord)
   detail?: string;                // e.g. district name destroyed
+}
+
+/** What a player did on one turn — shown as a transient popup. */
+export interface BotTurnSummary {
+  playerName: string;
+  characterName: string;
+  characterRank: number;
+  /** The round the turn belonged to. */
+  round: number;
+  actions: string[];
 }
 
 export interface PlayerPublicInfo {

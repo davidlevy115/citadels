@@ -17,7 +17,11 @@ export function cloneState<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
 
+/** Keep the whole game's history — the UI slices it per round and the
+ *  server slices it per turn, so trimming here would lose information. */
+const MAX_LOG_ENTRIES = 2000;
+
 export function addLog(state: GameState, message: string): void {
   state.log.push({ message, timestamp: Date.now() });
-  if (state.log.length > 200) state.log.shift();
+  if (state.log.length > MAX_LOG_ENTRIES) state.log.shift();
 }

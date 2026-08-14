@@ -2,28 +2,33 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import type { RoundEvent, Character } from '@citadels/game-logic';
-import { CHARACTERS } from '@citadels/game-logic';
-import { CHARACTER_ICON } from '@/lib/cardImages';
 
 interface RoundEventsProps {
   events: RoundEvent[];
   murderedCharacter: number | null;
   robbedCharacter: number | null;
+  bewitchedCharacter?: number | null;
   myCharacter: Character | null;
+  cast?: Character[];
 }
 
 const EVENT_STYLES: Record<RoundEvent['type'], { icon: string; color: string; bg: string; border: string }> = {
-  murder:  { icon: '\u2620', color: 'text-red-300',    bg: 'bg-red-950/60',    border: 'border-red-800' },
-  steal:   { icon: '\u2666', color: 'text-amber-300',  bg: 'bg-amber-950/60',  border: 'border-amber-800' },
-  swap:    { icon: '\u2728', color: 'text-indigo-300', bg: 'bg-indigo-950/60', border: 'border-indigo-800' },
-  destroy: { icon: '\u2694', color: 'text-red-400',    bg: 'bg-red-950/60',    border: 'border-red-800' },
-  bewitch: { icon: '\u2604', color: 'text-purple-300', bg: 'bg-purple-950/60', border: 'border-purple-800' },
+  murder:     { icon: '\u2620', color: 'text-red-300',    bg: 'bg-red-950/60',    border: 'border-red-800' },
+  steal:      { icon: '\u2666', color: 'text-amber-300',  bg: 'bg-amber-950/60',  border: 'border-amber-800' },
+  swap:       { icon: '\u2728', color: 'text-indigo-300', bg: 'bg-indigo-950/60', border: 'border-indigo-800' },
+  destroy:    { icon: '\u2694', color: 'text-red-400',    bg: 'bg-red-950/60',    border: 'border-red-800' },
+  bewitch:    { icon: '\u2698', color: 'text-purple-300', bg: 'bg-purple-950/60', border: 'border-purple-800' },
+  confiscate: { icon: '\u00a7', color: 'text-amber-200',  bg: 'bg-amber-950/60',  border: 'border-amber-700' },
+  blackmail:  { icon: '\u2709', color: 'text-rose-300',   bg: 'bg-rose-950/60',   border: 'border-rose-800' },
+  seize:      { icon: '\u2691', color: 'text-red-300',    bg: 'bg-red-950/60',    border: 'border-red-800' },
+  exchange:   { icon: '\u21c4', color: 'text-orange-300', bg: 'bg-orange-950/60', border: 'border-orange-800' },
+  spy:        { icon: '\u25c9', color: 'text-cyan-300',   bg: 'bg-cyan-950/60',   border: 'border-cyan-800' },
 };
 
 function formatEvent(event: RoundEvent): string {
   switch (event.type) {
     case 'murder':
-      return `${event.actorName} (Assassin) murdered the ${event.targetCharacter}!`;
+      return `${event.actorName} (Assassin) killed the ${event.targetCharacter}!`;
     case 'steal': {
       const victim = event.targetPlayerName ? ` \u2014 stole from ${event.targetPlayerName}` : '';
       const detail = event.detail ? ` (${event.detail})` : '';
@@ -35,25 +40,30 @@ function formatEvent(event: RoundEvent): string {
       return `${event.actorName} (Warlord) destroyed ${event.detail} in ${event.targetPlayerName}'s city`;
     case 'bewitch':
       return `${event.actorName} (Witch) bewitched the ${event.targetCharacter}`;
+    case 'confiscate':
+      return `${event.actorName} (Magistrate) confiscated ${event.detail} from ${event.targetPlayerName}`;
+    case 'blackmail':
+      return `${event.actorName} (Blackmailer) took ${event.detail} from ${event.targetPlayerName}`;
+    case 'seize':
+      return `${event.actorName} (Marshal) seized ${event.detail} from ${event.targetPlayerName}`;
+    case 'exchange':
+      return `${event.actorName} (Diplomat) swapped ${event.detail} with ${event.targetPlayerName}`;
+    case 'spy':
+      return `${event.actorName} (Spy) looked through ${event.targetPlayerName}'s hand`;
     default:
       return '';
   }
 }
 
-export function RoundEvents({ events, murderedCharacter, robbedCharacter, myCharacter }: RoundEventsProps) {
-  if (events.length === 0) return null;
-
-  // Check if I'm directly affected
+export function RoundEvents({
+  events, murderedCharacter, robbedCharacter, bewitchedCharacter, myCharacter, cast,
+}: RoundEventsProps) {
   const myRank = myCharacter?.rank;
   const iMurdered = myRank != null && murderedCharacter === myRank;
   const iRobbed = myRank != null && robbedCharacter === myRank;
+  const iBewitched = myRank != null && bewitchedCharacter === myRank;
 
-  const murderedName = murderedCharacter != null
-    ? CHARACTERS.find(c => c.rank === murderedCharacter)?.name
-    : null;
-  const robbedName = robbedCharacter != null
-    ? CHARACTERS.find(c => c.rank === robbedCharacter)?.name
-    : null;
+  if (events.length === 0 && !iMurdered && !iRobbed && !iBewitched) return null;
 
   return (
     <div className="space-y-2">
@@ -85,6 +95,24 @@ export function RoundEvents({ events, murderedCharacter, robbedCharacter, myChar
             <div className="text-2xl mb-1">{'\u2666'}</div>
             <div className="text-amber-200 font-bold text-sm">You are being robbed!</div>
             <div className="text-amber-400 text-xs mt-1">The Thief will steal all your gold when your turn starts.</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Personal alert: bewitched */}
+      <AnimatePresence>
+        {iBewitched && !iMurdered && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="bg-purple-900/80 border-2 border-purple-500 rounded-xl px-4 py-3 text-center shadow-lg shadow-purple-500/20"
+          >
+            <div className="text-2xl mb-1">⚘</div>
+            <div className="text-purple-200 font-bold text-sm">You have been bewitched!</div>
+            <div className="text-purple-300 text-xs mt-1">
+              You may only gather resources. The Witch then plays your {myCharacter?.name}&apos;s turn.
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

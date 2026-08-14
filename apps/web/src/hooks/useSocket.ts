@@ -2,13 +2,24 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import type { Socket } from 'socket.io-client';
-import type { GameAction } from '@citadels/game-logic';
+import type { GameAction, BotTurnSummary } from '@citadels/game-logic';
 import { getSocket } from '@/lib/socket';
 import { useGameStore } from './useGameState';
 
+/** Everything the setup screens can configure about a new game. */
+export interface GameSetup {
+  playerName: string;
+  playerAge?: number;
+  characterSetId: string;
+  includeRank9: boolean;
+}
+
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
-  const { setRoom, setGameView, setLobbyState, setError, setActionError, setSavedGames, roomId, playerId } = useGameStore();
+  const {
+    setRoom, setGameView, setLobbyState, setError, setActionError, setSavedGames,
+    setTurnSummary, roomId, playerId,
+  } = useGameStore();
 
   useEffect(() => {
     const socket = getSocket();
@@ -24,6 +35,10 @@ export function useSocket() {
 
     socket.on('lobbyState', (lobby: any) => {
       setLobbyState(lobby);
+    });
+
+    socket.on('turnSummary', (summary: BotTurnSummary & { id: string }) => {
+      setTurnSummary(summary);
     });
 
     socket.on('error', (msg: string) => {
@@ -42,14 +57,9 @@ export function useSocket() {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        if (!socket.connected) {
-          socket.connect();
-        }
-        // Re-request game state in case we missed updates while away
-        const currentRoomId = roomId;
-        const currentPlayerId = playerId;
-        if (currentRoomId && currentPlayerId) {
-          socket.emit('rejoinRoom', { roomId: currentRoomId, playerId: currentPlayerId });
+        if (!socket.connected) socket.connect();
+        if (roomId && playerId) {
+          socket.emit('rejoinRoom', { roomId, playerId });
         }
       }
     };
@@ -59,23 +69,40 @@ export function useSocket() {
       socket.off('roomJoined');
       socket.off('gameState');
       socket.off('lobbyState');
+      socket.off('turnSummary');
       socket.off('error');
       socket.off('actionError');
       socket.off('savedGames');
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [setRoom, setGameView, setLobbyState, setError, setActionError, setSavedGames, roomId, playerId]);
+  }, [
+    setRoom, setGameView, setLobbyState, setError, setActionError, setSavedGames,
+    setTurnSummary, roomId, playerId,
+  ]);
 
-  const createGame = useCallback((playerName: string, botCount: number) => {
-    socketRef.current?.emit('createGame', { playerName, botCount });
+  const createGame = useCallback((setup: GameSetup, botCount: number) => {
+    socketRef.current?.emit('createGame', {
+      playerName: setup.playerName,
+      playerAge: setup.playerAge,
+      characterSetId: setup.characterSetId,
+      includeRank9: setup.includeRank9,
+      botCount,
+    });
   }, []);
 
-  const createMultiplayerRoom = useCallback((playerName: string, totalHumans: number, botCount: number) => {
-    socketRef.current?.emit('createMultiplayerRoom', { playerName, totalHumans, botCount });
+  const createMultiplayerRoom = useCallback((setup: GameSetup, totalHumans: number, botCount: number) => {
+    socketRef.current?.emit('createMultiplayerRoom', {
+      playerName: setup.playerName,
+      playerAge: setup.playerAge,
+      characterSetId: setup.characterSetId,
+      includeRank9: setup.includeRank9,
+      totalHumans,
+      botCount,
+    });
   }, []);
 
-  const joinRoom = useCallback((roomId: string, playerName: string) => {
-    socketRef.current?.emit('joinRoom', { roomId, playerName });
+  const joinRoom = useCallback((roomCode: string, playerName: string, playerAge?: number) => {
+    socketRef.current?.emit('joinRoom', { roomId: roomCode, playerName, playerAge });
   }, []);
 
   const sendAction = useCallback((action: Omit<GameAction, 'playerId'> & { playerId?: string }) => {
@@ -94,5 +121,12 @@ export function useSocket() {
     socketRef.current?.emit('listSaves');
   }, []);
 
-  return { createGame, createMultiplayerRoom, joinRoom, sendAction, loadGame, listSaves };
+  /** Tell the server this player has read the recap; the game waits for all of them. */
+  const ackTurnSummary = useCallback((summaryId: string) => {
+    setTurnSummary(null);
+    if (!roomId) return;
+    socketRef.current?.emit('turnSummaryAck', { roomId, summaryId });
+  }, [roomId, setTurnSummary]);
+
+  return { createGame, createMultiplayerRoom, joinRoom, sendAction, loadGame, listSaves, ackTurnSummary };
 }

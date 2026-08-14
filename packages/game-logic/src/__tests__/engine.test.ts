@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   createGame, processAction, getPlayerView, getAvailableActions,
   getBotAction, calculateScores, CHARACTERS,
+  hasPendingDecision, pendingDecisionPlayerId,
   type GameState, type GameConfig, type GameAction,
 } from '../index.js';
 
@@ -286,7 +287,9 @@ describe('Character powers', () => {
     state.currentCharacterRank = player0Rank;
 
     state.turnState = {
+      playerId: state.players[0].id,
       characterRank: player0Rank,
+      effectiveCharacter: state.players[0].characterCard!,
       phase: 'awaitingAction',
       actionTaken: false,
       powerUsed: false,
@@ -296,6 +299,10 @@ describe('Character powers', () => {
       drawnCards: [],
       merchantBonusTaken: false,
       specialBuildingsUsed: [],
+      goldSpentBuilding: 0,
+      beautifiedCount: 0,
+      isBewitchedTurn: false,
+      isWitchResume: false,
     };
 
     return state;
@@ -886,7 +893,9 @@ describe('Game end', () => {
     state.players[0].hand = [{ id: 'new', name: 'UniqueDistrict', cost: 1, type: 'noble' }];
 
     state.turnState = {
+      playerId: state.players[0].id,
       characterRank: 4,
+      effectiveCharacter: state.players[0].characterCard!,
       phase: 'awaitingAction',
       actionTaken: false,
       powerUsed: false,
@@ -896,6 +905,10 @@ describe('Game end', () => {
       drawnCards: [],
       merchantBonusTaken: false,
       specialBuildingsUsed: [],
+      goldSpentBuilding: 0,
+      beautifiedCount: 0,
+      isBewitchedTurn: false,
+      isWitchResume: false,
     };
 
     state = processAction(state, { type: 'TAKE_GOLD', playerId: state.players[0].id });
@@ -966,11 +979,12 @@ describe('Full game simulation with bots', () => {
       // Find which bot needs to act
       let botId: string | null = null;
 
-      if (state.phase === 'chooseCharacters') {
+      if (hasPendingDecision(state)) {
+        botId = pendingDecisionPlayerId(state);
+      } else if (state.phase === 'chooseCharacters') {
         botId = state.players[state.choosingPlayerIndex].id;
-      } else if (state.phase === 'playerTurns') {
-        const active = state.players.find(p => p.characterCard?.rank === state.currentCharacterRank);
-        if (active) botId = active.id;
+      } else if (state.phase === 'playerTurns' && state.turnState) {
+        botId = state.turnState.playerId;
       }
 
       if (!botId) {
