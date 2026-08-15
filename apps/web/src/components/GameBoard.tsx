@@ -641,9 +641,9 @@ function BlackmailOverlay({ pending, myThreats, cast, currentRank, onAction }: {
 }
 
 /**
- * The Seer has taken a card from each player and must now decide, card by card,
- * who gets what back. Any card in hand may go to any of them — including the
- * one that was just taken from somebody else.
+ * The Seer has taken a card from each player and must now decide who gets what
+ * back. Asked one player at a time: pick a card, move on to the next. Any card
+ * in hand may go to any of them — including one taken from somebody else.
  */
 function SeerOverlay({ recipients, hand, onGive, onDetail }: {
   recipients: { id: string; name: string }[];
@@ -652,112 +652,84 @@ function SeerOverlay({ recipients, hand, onGive, onDetail }: {
   onDetail: (card: DistrictCard) => void;
 }) {
   const t = useT();
-  const [selectedCard, setSelectedCard] = useState<number | null>(null);
-  // recipient id → index into the hand
-  const [assigned, setAssigned] = useState<Record<string, number>>({});
+  // Choices so far, in recipient order.
+  const [picks, setPicks] = useState<{ toPlayerId: string; cardIndex: number }[]>([]);
+  const [submitted, setSubmitted] = useState(false);
 
-  const takenCards = new Set(Object.values(assigned));
-  const remaining = recipients.length - Object.keys(assigned).length;
+  const current = recipients[picks.length];
+  const used = new Set(picks.map(p => p.cardIndex));
 
-  const assign = (recipientId: string) => {
-    if (selectedCard === null) return;
-    setAssigned(prev => {
-      const next = { ...prev };
-      // A card can only go to one player, so drop any earlier use of it.
-      for (const [id, index] of Object.entries(next)) {
-        if (index === selectedCard) delete next[id];
-      }
-      next[recipientId] = selectedCard;
-      return next;
-    });
-    setSelectedCard(null);
-  };
-
-  const clear = (recipientId: string) => {
-    setAssigned(prev => {
-      const next = { ...prev };
-      delete next[recipientId];
-      return next;
-    });
+  const choose = (cardIndex: number) => {
+    if (!current || submitted) return;
+    const next = [...picks, { toPlayerId: current.id, cardIndex }];
+    setPicks(next);
+    // The last choice completes the handout.
+    if (next.length === recipients.length) {
+      setSubmitted(true);
+      onGive(next);
+    }
   };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-slate-800 rounded-xl p-5 border border-indigo-600/60 max-w-lg w-full max-h-[90dvh] overflow-y-auto">
-        <h2 className="text-base font-bold text-center mb-1 text-indigo-300">{t('seer.title')}</h2>
-        <p className="text-xs text-slate-400 text-center mb-4">
-          {t('seer.prompt', { count: recipients.length })}
-        </p>
+        <h2 className="text-base font-bold text-center text-indigo-300">{t('seer.title')}</h2>
+        <p className="text-[11px] text-slate-500 text-center mt-1 mb-4">{t('seer.prompt')}</p>
 
-        {/* Hand — pick a card first */}
-        <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">{t('seer.yourHand')}</p>
-        <div className="flex flex-wrap gap-1.5 justify-center mb-4">
-          {hand.map((card, i) => {
-            const used = takenCards.has(i);
-            const isSelected = selectedCard === i;
-            return (
-              <button
-                key={card.id}
-                onClick={() => setSelectedCard(isSelected ? null : i)}
-                className={`rounded-lg transition-all ${
-                  isSelected ? 'ring-2 ring-cyan-400 scale-105' : used ? 'opacity-30' : 'hover:brightness-110'
-                }`}
-              >
-                <DistrictCardView card={card} small disabled onDetail={() => onDetail(card)} />
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Recipients — then say who gets it */}
-        <div className="space-y-1.5 mb-4">
-          {recipients.map(recipient => {
-            const cardIndex = assigned[recipient.id];
-            const card = cardIndex === undefined ? null : hand[cardIndex];
-            return (
-              <div key={recipient.id} className="flex items-center gap-2">
-                <span className="text-xs text-slate-300 w-24 shrink-0 truncate">
-                  {t('seer.giveTo', { player: recipient.name })}
-                </span>
-                <button
-                  onClick={() => assign(recipient.id)}
-                  disabled={selectedCard === null && !card}
-                  className={`flex-1 px-3 py-2 rounded-lg text-xs text-left border transition-colors ${
-                    card
-                      ? 'bg-indigo-900/50 border-indigo-600 text-indigo-200'
-                      : selectedCard !== null
-                        ? 'bg-slate-700 border-cyan-600/60 text-cyan-300 hover:bg-slate-600'
-                        : 'bg-slate-700/40 border-slate-600/50 text-slate-500'
-                  }`}
-                >
-                  {card ? `${t.district(card.name)} (${card.cost})` : t('seer.pickCard')}
-                </button>
-                {card && (
-                  <button
-                    onClick={() => clear(recipient.id)}
-                    className="text-[10px] text-slate-500 hover:text-slate-300 shrink-0"
-                  >
-                    {t('seer.clear')}
-                  </button>
-                )}
+        {current && (
+          <>
+            <div className="text-center mb-3">
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                {t('seer.progress', { current: picks.length + 1, total: recipients.length })}
               </div>
-            );
-          })}
-        </div>
+              <div className="text-sm font-bold text-cyan-300 mt-0.5">
+                {t('seer.chooseFor', { player: current.name })}
+              </div>
+            </div>
 
-        <div className="text-center">
-          <button
-            onClick={() => onGive(recipients.map(r => ({ toPlayerId: r.id, cardIndex: assigned[r.id] })))}
-            disabled={remaining > 0}
-            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-sm font-bold text-white transition-colors shadow-lg"
-          >
-            {t('seer.confirm')}
-          </button>
-          {remaining > 0 && (
-            <p className="text-[10px] text-slate-500 mt-1.5">{t('seer.remaining', { count: remaining })}</p>
-          )}
-        </div>
+            <div className="flex flex-wrap gap-2 justify-center mb-4">
+              {hand.map((card, i) => (
+                used.has(i) ? null : (
+                  <DistrictCardView
+                    key={card.id}
+                    card={card}
+                    small
+                    onSelect={() => choose(i)}
+                    onDetail={() => onDetail(card)}
+                  />
+                )
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* What has been decided so far */}
+        {picks.length > 0 && (
+          <div className="space-y-1 mb-3">
+            {picks.map(pick => {
+              const who = recipients.find(r => r.id === pick.toPlayerId);
+              return (
+                <div key={pick.toPlayerId} className="text-[11px] text-indigo-200 bg-indigo-900/30 rounded px-2.5 py-1.5">
+                  {t('seer.given', { player: who?.name ?? '', district: hand[pick.cardIndex].name })}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Always available: if the handout is rejected the overlay stays up,
+            and Back is what lets the player try again rather than be stuck. */}
+        {picks.length > 0 && (
+          <div className="text-center">
+            <button
+              onClick={() => { setSubmitted(false); setPicks(picks.slice(0, -1)); }}
+              className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs font-medium text-slate-200 transition-colors"
+            >
+              ← {t('seer.back')}
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   );

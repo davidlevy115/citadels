@@ -76,8 +76,8 @@ export type UiKey =
   | 'blackmail.title' | 'blackmail.bribePrompt' | 'blackmail.pay' | 'blackmail.refuse'
   | 'blackmail.revealPrompt' | 'blackmail.realThreat' | 'blackmail.bluff'
   | 'blackmail.reveal' | 'blackmail.leaveFacedown'
-  | 'seer.title' | 'seer.prompt' | 'seer.giveTo' | 'seer.pickCard'
-  | 'seer.confirm' | 'seer.remaining' | 'seer.yourHand' | 'seer.clear'
+  | 'seer.title' | 'seer.prompt' | 'seer.chooseFor' | 'seer.progress'
+  | 'seer.back' | 'seer.given'
   // Game over
   | 'over.title' | 'over.playAgain' | 'over.points' | 'over.colourBonus'
   | 'over.firstBonus' | 'over.otherBonus'

@@ -35,6 +35,9 @@ const TYPE_TEXT: Record<string, string> = {
 interface DistrictCardProps {
   card: DistrictCard & { beautified?: boolean };
   onClick?: () => void;
+  /** Tapping the card body picks it. Takes precedence over every other click
+   *  behaviour, so a selectable card can still show its info button. */
+  onSelect?: () => void;
   onDetail?: () => void;
   selected?: boolean;
   disabled?: boolean;
@@ -42,7 +45,7 @@ interface DistrictCardProps {
   buildable?: boolean;
 }
 
-export function DistrictCardView({ card, onClick, onDetail, selected, disabled, small, buildable }: DistrictCardProps) {
+export function DistrictCardView({ card, onClick, onSelect, onDetail, selected, disabled, small, buildable }: DistrictCardProps) {
   const t = useT();
   const [imgError, setImgError] = useState(false);
   const typeLabel = t.districtType(card.type);
@@ -54,6 +57,14 @@ export function DistrictCardView({ card, onClick, onDetail, selected, disabled, 
   const icon = DISTRICT_TYPE_ICON[card.type] || '\u2726';
 
   const handleCardClick = (e: React.MouseEvent) => {
+    // `onSelect` is the unambiguous "this card is a choice" case and always
+    // wins. Without it the rules below are order-dependent and easy to misuse:
+    // passing both `disabled` and `onDetail` silently swallows the click.
+    if (onSelect) {
+      e.stopPropagation();
+      onSelect();
+      return;
+    }
     if (disabled && onDetail) {
       e.stopPropagation();
       onDetail();

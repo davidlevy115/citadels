@@ -109,13 +109,11 @@ export const es: Dictionary = {
     'blackmail.leaveFacedown': 'Dejarlo boca abajo',
 
     'seer.title': 'Devuelve una carta',
-    'seer.prompt': 'Has tomado una carta de {count} jugadores. Elige qué carta de tu mano recibe cada uno: no tiene por qué ser la que le quitaste.',
-    'seer.giveTo': 'Para {player}',
-    'seer.pickCard': 'Elige una carta',
-    'seer.confirm': 'Entregar las cartas',
-    'seer.remaining': 'Quedan {count} por asignar',
-    'seer.yourHand': 'Tu mano: toca una carta y luego a quién se la das',
-    'seer.clear': 'Quitar',
+    'seer.prompt': 'No tiene por qué ser la carta que le quitaste.',
+    'seer.chooseFor': 'Elige una carta para {player}',
+    'seer.progress': '{current} de {total}',
+    'seer.back': 'Atrás',
+    'seer.given': '{player} recibe {districtEl}',
 
     'over.title': 'Fin de la partida',
     'over.playAgain': 'Jugar otra vez',
